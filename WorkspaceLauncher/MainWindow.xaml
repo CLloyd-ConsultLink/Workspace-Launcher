@@ -1,0 +1,239 @@
+<Window x:Class="WorkspaceLauncher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Workspace Launcher"
+        Width="1180" Height="800" MinWidth="980" MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource CanvasBrush}"
+        FontFamily="Segoe UI">
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="66" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="28" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="2,0,2,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Width="42" Height="42" CornerRadius="12" Background="{StaticResource AccentBrush}">
+                    <TextBlock Text="W" Foreground="White" FontSize="22" FontWeight="Bold"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <StackPanel Margin="13,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="Workspace Launcher" FontSize="20" FontWeight="Bold"
+                               Foreground="{StaticResource InkBrush}" />
+                    <TextBlock Text="Your setup, ready when you are" FontSize="12"
+                               Foreground="{StaticResource MutedBrush}" Margin="0,2,0,0" />
+                </StackPanel>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="ConfigureSequenceButton" Content="Configure sequence"
+                        Padding="14,11" Margin="0,0,8,0"
+                        Click="ConfigureSequenceButton_Click" VerticalAlignment="Center" />
+                <Button x:Name="LaunchSequenceButton" Content="Launch sequence"
+                    Style="{StaticResource PrimaryButton}" Padding="18,11"
+                    Click="LaunchSequenceButton_Click" VerticalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="270" />
+                <ColumnDefinition Width="18" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{StaticResource PanelBrush}" CornerRadius="14"
+                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Padding="16">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="34" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <TextBlock Text="YOUR WORKSPACES" FontSize="11" FontWeight="Bold"
+                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                        <Button x:Name="NewWorkspaceButton" Content="+ New" Padding="10,5" FontSize="12"
+                                HorizontalAlignment="Right" Click="NewWorkspaceButton_Click" />
+                    </Grid>
+                    <ListBox x:Name="WorkspaceList" Grid.Row="1" Margin="0,12,0,12"
+                             BorderThickness="0" Background="Transparent"
+                             SelectionChanged="WorkspaceList_SelectionChanged"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="11,10" />
+                                <Setter Property="Margin" Value="0,0,0,6" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="ItemBorder" Background="{TemplateBinding Background}"
+                                                    CornerRadius="9" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="ItemBorder" Property="Background" Value="#EEF0FF" />
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="ItemBorder" Property="Background" Value="#F5F6FA" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                        <TextBlock Text="{Binding Items.Count, StringFormat={}{0} launch items}"
+                                                   FontSize="11" Foreground="{StaticResource MutedBrush}" Margin="0,3,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding DesktopLabel}"
+                                               FontSize="10" Foreground="{StaticResource MutedBrush}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <Button x:Name="DeleteWorkspaceButton" Grid.Row="2" Content="Delete workspace"
+                            HorizontalAlignment="Stretch" Foreground="#B54450"
+                            Click="DeleteWorkspaceButton_Click" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" Background="{StaticResource PanelBrush}" CornerRadius="14"
+                    BorderBrush="{StaticResource LineBrush}" BorderThickness="1" Padding="22">
+                <Grid x:Name="EditorPanel" IsEnabled="False">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="150" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="20" />
+                            <ColumnDefinition Width="170" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="WORKSPACE NAME" FontSize="10" FontWeight="Bold"
+                                       Foreground="{StaticResource MutedBrush}" Margin="0,0,0,7" />
+                            <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                     FontSize="18" FontWeight="SemiBold" Padding="11,9" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="VIRTUAL DESKTOP" FontSize="10" FontWeight="Bold"
+                                       Foreground="{StaticResource MutedBrush}" Margin="0,0,0,7" />
+                            <ComboBox x:Name="DesktopComboBox"
+                                      SelectedIndex="{Binding DesktopIndex, UpdateSourceTrigger=PropertyChanged}" />
+                        </StackPanel>
+                        <Button Grid.Column="4" Content="Launch workspace" Style="{StaticResource PrimaryButton}"
+                                Padding="15,10" VerticalAlignment="Bottom"
+                                Click="LaunchSelectedButton_Click" />
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="LAUNCH ITEMS" FontSize="11" FontWeight="Bold"
+                                   Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"
+                                   Margin="0,0,14,0" />
+                        <Button Grid.Column="1" Content="+ App or shortcut" Padding="11,7"
+                                Click="AddApplicationButton_Click" />
+                        <TextBox x:Name="WebsiteUrlBox" Grid.Column="2" Margin="8,0"
+                                 ToolTip="Enter a website address" />
+                        <Button Grid.Column="3" Content="Add website" Padding="11,7"
+                                Click="AddWebsiteButton_Click" />
+                        <Button Grid.Column="4" Content="Remove" Padding="11,7" Margin="8,0,0,0"
+                                Click="RemoveItemButton_Click" />
+                    </Grid>
+
+                    <DataGrid x:Name="LaunchItemsGrid" Grid.Row="2" ItemsSource="{Binding Items}"
+                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                              CanUserReorderColumns="False" CanUserSortColumns="False"
+                              SelectionMode="Single" SelectionUnit="FullRow"
+                              HeadersVisibility="Column" GridLinesVisibility="None"
+                              RowHeight="44" AlternatingRowBackground="#FAFBFD"
+                              BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                              Background="White" FontSize="12" Margin="0,0,0,14">
+                        <DataGrid.ColumnHeaderStyle>
+                            <Style TargetType="DataGridColumnHeader">
+                                <Setter Property="Background" Value="#F7F8FB" />
+                                <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                                <Setter Property="Padding" Value="10,11" />
+                                <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
+                            </Style>
+                        </DataGrid.ColumnHeaderStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="TYPE" Binding="{Binding Kind}" IsReadOnly="True" Width="105" />
+                            <DataGridTextColumn Header="NAME" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="160" />
+                            <DataGridTextColumn Header="APP PATH OR WEBSITE" Binding="{Binding Target, UpdateSourceTrigger=PropertyChanged}" Width="*" />
+                            <DataGridTextColumn Header="PROCESS NAME (OPTIONAL)" Binding="{Binding ProcessName, UpdateSourceTrigger=PropertyChanged}" Width="180" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Grid Grid.Row="3">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="LAUNCH ACTIVITY" FontSize="10" FontWeight="Bold"
+                                           Foreground="{StaticResource MutedBrush}" />
+                                <TextBlock x:Name="StatusText" Text="Ready" FontSize="11"
+                                           Foreground="{StaticResource InkBrush}" Margin="0,3,0,0" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="Move up" Padding="10,6" Margin="0,0,6,0"
+                                        Click="MoveItemUpButton_Click" />
+                                <Button Content="Move down" Padding="10,6"
+                                        Click="MoveItemDownButton_Click" />
+                                <Button x:Name="SaveButton" Content="Save changes" Style="{StaticResource PrimaryButton}"
+                                        Padding="14,7" Margin="12,0,0,0" Click="SaveButton_Click" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBox x:Name="ActivityLog" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True"
+                                 TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                 FontFamily="Consolas" FontSize="11" Padding="10"
+                                 Background="#FAFBFD" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <TextBlock Grid.Row="2" Text="Changes are stored locally in your Windows app-data folder."
+                   FontSize="11" Foreground="{StaticResource MutedBrush}"
+                   VerticalAlignment="Bottom" Margin="2,0,0,0" />
+    </Grid>
+</Window>
