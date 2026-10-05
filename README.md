@@ -10,9 +10,19 @@ Workspace Launcher is a native Windows desktop app for configuring and launching
 
 The first run creates Admin, Work, and Entertainment workspaces based on the existing launcher script. Workspace settings are stored at `%LOCALAPPDATA%\WorkspaceLauncher\workspaces.json`.
 
+## Publish and install
+
+To create a self-contained Windows x64 release ZIP without requiring the .NET SDK on the target PC, run:
+
+```powershell
+.\Publish-WorkspaceLauncher.ps1
+```
+
+The output is written to `artifacts\WorkspaceLauncher-win-x64.zip`. Extract it, then right-click `Install-WorkspaceLauncher.ps1` and choose **Run with PowerShell**, or run it from PowerShell. The installer copies the app into `%LOCALAPPDATA%\Programs\WorkspaceLauncher` and adds a Start Menu shortcut. Re-run the installer to update; close the app first. Your workspace settings are kept separately and are not removed by an update.
+
 ## Configure workspaces
 
-- Select **+ New** to create a workspace. Edit its name and choose Desktop 1, 2, or 3.
+- Select **+ New** to create a workspace. Edit its name and choose from the virtual desktops currently available on the laptop.
 - Use **+ App or shortcut** to add an `.exe` or `.lnk`; enter a website address and choose **Add website** for web links.
 - Edit launch-item names, targets, and optional process names in the table. Process names let the app detect an already-running app and skip relaunching it.
 - Use **Move up** and **Move down** to arrange each workspace's launch items, then save changes.

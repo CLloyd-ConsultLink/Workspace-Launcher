@@ -6,10 +6,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\WorkspaceLauncher.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Content Include="..\workspace_desktop.ps1" Link="workspace_desktop.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <Resource Include="Assets\WorkspaceLauncher.ico" />
   </ItemGroup>
 
 </Project>
