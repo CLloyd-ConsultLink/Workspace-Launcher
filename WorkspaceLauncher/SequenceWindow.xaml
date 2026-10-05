@@ -28,29 +28,37 @@
                 <TextBlock Text="AVAILABLE WORKSPACES" FontSize="10" FontWeight="Bold"
                            Foreground="{StaticResource MutedBrush}" Margin="0,0,0,8" />
                 <ListBox x:Name="AvailableList" DisplayMemberPath="Name"
+                         ToolTip="Workspaces available to add to the launch sequence."
                          BorderBrush="{StaticResource LineBrush}" Background="White"
                          SelectionMode="Single" />
             </StackPanel>
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0">
-                <Button Content="Add →" Padding="12,8" Margin="0,0,0,8" Click="AddButton_Click" />
-                <Button Content="← Remove" Padding="12,8" Click="RemoveButton_Click" />
+                <Button Content="Add →" ToolTip="Add the selected available workspace to the sequence."
+                        Padding="12,8" Margin="0,0,0,8" Click="AddButton_Click" />
+                <Button Content="← Remove" ToolTip="Remove the selected workspace from the sequence."
+                        Padding="12,8" Click="RemoveButton_Click" />
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="LAUNCH ORDER" FontSize="10" FontWeight="Bold"
                            Foreground="{StaticResource MutedBrush}" Margin="0,0,0,8" />
                 <ListBox x:Name="SequenceList" DisplayMemberPath="Name"
+                         ToolTip="These workspaces launch in the order shown."
                          BorderBrush="{StaticResource LineBrush}" Background="White"
                          SelectionMode="Single" />
             </StackPanel>
             <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0">
-                <Button Content="Move up" Padding="11,8" Margin="0,0,0,8" Click="MoveUpButton_Click" />
-                <Button Content="Move down" Padding="11,8" Click="MoveDownButton_Click" />
+                <Button Content="Move up" ToolTip="Launch this workspace earlier in the sequence."
+                        Padding="11,8" Margin="0,0,0,8" Click="MoveUpButton_Click" />
+                <Button Content="Move down" ToolTip="Launch this workspace later in the sequence."
+                        Padding="11,8" Click="MoveDownButton_Click" />
             </StackPanel>
         </Grid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="Cancel" MinWidth="88" Margin="0,0,8,0" IsCancel="True" />
+            <Button Content="Cancel" ToolTip="Discard sequence edits and close this window."
+                    MinWidth="88" Margin="0,0,8,0" IsCancel="True" />
             <Button Content="Save sequence" MinWidth="130" Style="{StaticResource PrimaryButton}"
+                    ToolTip="Save the selected workspaces and their launch order."
                     IsDefault="True" Click="SaveButton_Click" />
         </StackPanel>
     </Grid>

@@ -142,7 +142,7 @@ exit /b
 :launchWorkApps
 echo Launcher trace: entered launchWorkApps
 echo Opening GitHub...
-start "" "https://github.com/orgs/ConsultLink/repositories"
+start "" "https://github.com"
 if exist "%LOCALAPPDATA%\GitHubDesktop\GitHubDesktop.exe" (
 	call :launchIfNotRunning "GitHubDesktop.exe" "GitHub Desktop" "%LOCALAPPDATA%\GitHubDesktop\GitHubDesktop.exe"
 ) else (
@@ -161,5 +161,9 @@ exit /b
 
 :launchEntertainmentApps
 echo Opening YouTube Music...
-start "" "C:\Users\ChristopherL\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\NovusTheory\YouTube Music Desktop App.lnk"
+if exist "%APPDATA%\Microsoft\Windows\Start Menu\Programs\NovusTheory\YouTube Music Desktop App.lnk" (
+	start "" "%APPDATA%\Microsoft\Windows\Start Menu\Programs\NovusTheory\YouTube Music Desktop App.lnk"
+) else (
+	echo YouTube Music shortcut was not found in this user's Start Menu.
+)
 exit /b

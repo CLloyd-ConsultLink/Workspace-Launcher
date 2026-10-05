@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
@@ -42,15 +43,19 @@ public partial class MainWindow : Window
             }
 
             WorkspaceList.ItemsSource = _profiles;
+            NoWorkspacesHint.Visibility = _profiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             if (_profiles.Count > 0)
             {
                 WorkspaceList.SelectedIndex = 0;
             }
+            UpdateEmptyState();
 
             _store.Save(_configuration);
             AppendLog($"Detected {_desktopCount} virtual desktop(s).");
             AppendLog($"Configuration: {_store.FilePath}");
-            AppendLog("Select a workspace, edit its launch items, then save or launch.");
+            AppendLog(_profiles.Count == 0
+                ? "Choose + New to create your first workspace."
+                : "Select a workspace, edit its launch items, then save or launch.");
         }
         catch (Exception exception)
         {
@@ -67,17 +72,25 @@ public partial class MainWindow : Window
     {
         if (_selectedWorkspace is not null)
         {
+            _selectedWorkspace.Items.CollectionChanged -= SelectedWorkspaceItems_CollectionChanged;
             SaveProfiles(showSuccess: false);
         }
 
         _selectedWorkspace = WorkspaceList.SelectedItem as WorkspaceProfile;
+        if (_selectedWorkspace is not null)
+        {
+            _selectedWorkspace.Items.CollectionChanged += SelectedWorkspaceItems_CollectionChanged;
+        }
+
         EditorPanel.DataContext = _selectedWorkspace;
         EditorPanel.IsEnabled = _selectedWorkspace is not null && !_isBusy;
         DeleteWorkspaceButton.IsEnabled = _selectedWorkspace is not null && !_isBusy;
         LaunchSequenceButton.IsEnabled = !_isBusy;
         NewWorkspaceButton.IsEnabled = !_isBusy;
         WorkspaceList.IsEnabled = !_isBusy;
+        NoWorkspacesHint.Visibility = _profiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         StatusText.Text = _selectedWorkspace is null ? "Create a workspace to get started." : $"Editing {_selectedWorkspace.Name}";
+        UpdateEmptyState();
     }
 
     private void NewWorkspaceButton_Click(object sender, RoutedEventArgs e)
@@ -104,13 +117,6 @@ public partial class MainWindow : Window
     {
         if (_selectedWorkspace is null)
         {
-            return;
-        }
-
-        if (_profiles.Count == 1)
-        {
-            MessageBox.Show("Keep at least one workspace. Create another before deleting this one.",
-                "Cannot delete workspace", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
@@ -173,25 +179,18 @@ public partial class MainWindow : Window
             return;
         }
 
-        string address = WebsiteUrlBox.Text.Trim();
-        if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        var dialog = new WebsiteDialog
         {
-            MessageBox.Show("Enter a complete website address beginning with http:// or https://.",
-                "Invalid website", MessageBoxButton.OK, MessageBoxImage.Information);
+            Owner = this
+        };
+        if (dialog.ShowDialog() != true || dialog.Website is null)
+        {
             return;
         }
 
-        var item = new LaunchItem
-        {
-            Kind = LaunchItemKind.Website,
-            Name = uri.Host,
-            Target = uri.AbsoluteUri
-        };
-        _selectedWorkspace.Items.Add(item);
-        LaunchItemsGrid.SelectedItem = item;
-        WebsiteUrlBox.Clear();
-        AppendLog($"Added website: {item.Target}");
+        _selectedWorkspace.Items.Add(dialog.Website);
+        LaunchItemsGrid.SelectedItem = dialog.Website;
+        AppendLog($"Added website: {dialog.Website.Name} ({dialog.Website.Target})");
     }
 
     private void RemoveItemButton_Click(object sender, RoutedEventArgs e)
@@ -421,5 +420,17 @@ public partial class MainWindow : Window
     {
         ActivityLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
         ActivityLog.ScrollToEnd();
+    }
+
+    private void SelectedWorkspaceItems_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        UpdateEmptyState();
+    }
+
+    private void UpdateEmptyState()
+    {
+        EmptyItemsHint.Visibility = _selectedWorkspace is not null && _selectedWorkspace.Items.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 }

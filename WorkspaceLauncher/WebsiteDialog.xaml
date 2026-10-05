@@ -1,0 +1,50 @@
+<Window x:Class="WorkspaceLauncher.WebsiteDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Add website" Width="500" Height="360"
+        MinWidth="460" MinHeight="340" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource CanvasBrush}" FontFamily="Segoe UI">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="0,0,0,18">
+            <TextBlock Text="Add a website" FontSize="20" FontWeight="Bold"
+                       Foreground="{StaticResource InkBrush}" />
+            <TextBlock Text="The website will open in your default browser with this workspace."
+                       FontSize="12" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,14">
+            <TextBlock Text="WEBSITE NAME" FontSize="10" FontWeight="Bold"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,0,0,6" />
+            <TextBox x:Name="WebsiteNameBox" ToolTip="Enter the label shown for this website in the launch list."
+                     Padding="10,9" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="2">
+            <TextBlock Text="WEBSITE ADDRESS" FontSize="10" FontWeight="Bold"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,0,0,6" />
+            <TextBox x:Name="WebsiteUrlBox" ToolTip="Enter the full address, beginning with https:// or http://."
+                     Padding="10,9" />
+        </StackPanel>
+
+        <TextBlock x:Name="ValidationMessage" Grid.Row="3" Margin="0,9,0,0"
+                   TextWrapping="Wrap" FontSize="11" Foreground="#B54450"
+                   VerticalAlignment="Top" />
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" MinWidth="88" Margin="0,0,8,0" IsCancel="True"
+                    ToolTip="Close without adding a website." />
+            <Button Content="Add website" MinWidth="112" Style="{StaticResource PrimaryButton}"
+                    IsDefault="True" Click="AddWebsiteButton_Click"
+                    ToolTip="Validate and add the website to this workspace." />
+        </StackPanel>
+    </Grid>
+</Window>

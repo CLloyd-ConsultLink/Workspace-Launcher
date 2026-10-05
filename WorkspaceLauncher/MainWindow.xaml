@@ -33,9 +33,11 @@
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
                 <Button x:Name="ConfigureSequenceButton" Content="Configure sequence"
+                        ToolTip="Choose which workspaces to launch and arrange their order."
                         Padding="14,11" Margin="0,0,8,0"
                         Click="ConfigureSequenceButton_Click" VerticalAlignment="Center" />
                 <Button x:Name="LaunchSequenceButton" Content="Launch sequence"
+                    ToolTip="Launch each workspace in your saved sequence, in order."
                     Style="{StaticResource PrimaryButton}" Padding="18,11"
                     Click="LaunchSequenceButton_Click" VerticalAlignment="Center" />
             </StackPanel>
@@ -59,7 +61,9 @@
                     <Grid>
                         <TextBlock Text="YOUR WORKSPACES" FontSize="11" FontWeight="Bold"
                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
-                        <Button x:Name="NewWorkspaceButton" Content="+ New" Padding="10,5" FontSize="12"
+                        <Button x:Name="NewWorkspaceButton" Content="+ New"
+                                ToolTip="Create an empty workspace, then choose its desktop and add launch items."
+                                Padding="10,5" FontSize="12"
                                 HorizontalAlignment="Right" Click="NewWorkspaceButton_Click" />
                     </Grid>
                     <ListBox x:Name="WorkspaceList" Grid.Row="1" Margin="0,12,0,12"
@@ -115,7 +119,13 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+                    <TextBlock x:Name="NoWorkspacesHint" Grid.Row="1" Margin="16,24"
+                               Text="No workspaces yet. Choose + New to create your first workspace."
+                               TextWrapping="Wrap" TextAlignment="Center" FontSize="12"
+                               Foreground="{StaticResource MutedBrush}" VerticalAlignment="Top"
+                               IsHitTestVisible="False" Visibility="Collapsed" />
                     <Button x:Name="DeleteWorkspaceButton" Grid.Row="2" Content="Delete workspace"
+                            ToolTip="Delete this workspace and remove it from the saved launch sequence."
                             HorizontalAlignment="Stretch" Foreground="#B54450"
                             Click="DeleteWorkspaceButton_Click" />
                 </Grid>
@@ -143,15 +153,18 @@
                             <TextBlock Text="WORKSPACE NAME" FontSize="10" FontWeight="Bold"
                                        Foreground="{StaticResource MutedBrush}" Margin="0,0,0,7" />
                             <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                     ToolTip="Give this workspace a name that helps you recognize its purpose."
                                      FontSize="18" FontWeight="SemiBold" Padding="11,9" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="VIRTUAL DESKTOP" FontSize="10" FontWeight="Bold"
                                        Foreground="{StaticResource MutedBrush}" Margin="0,0,0,7" />
                             <ComboBox x:Name="DesktopComboBox"
+                                      ToolTip="Choose the virtual desktop where this workspace's apps should open."
                                       SelectedIndex="{Binding DesktopIndex, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                         <Button Grid.Column="4" Content="Launch workspace" Style="{StaticResource PrimaryButton}"
+                                ToolTip="Launch this workspace now without running the saved sequence."
                                 Padding="15,10" VerticalAlignment="Bottom"
                                 Click="LaunchSelectedButton_Click" />
                     </Grid>
@@ -167,17 +180,26 @@
                         <TextBlock Text="LAUNCH ITEMS" FontSize="11" FontWeight="Bold"
                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"
                                    Margin="0,0,14,0" />
-                        <Button Grid.Column="1" Content="+ App or shortcut" Padding="11,7"
+                        <Button Grid.Column="1" Content="+ App or shortcut"
+                                ToolTip="Browse for an application executable (.exe) or Windows shortcut (.lnk)."
+                                Padding="11,7"
                                 Click="AddApplicationButton_Click" />
-                        <TextBox x:Name="WebsiteUrlBox" Grid.Column="2" Margin="8,0"
-                                 ToolTip="Enter a website address" />
-                        <Button Grid.Column="3" Content="Add website" Padding="11,7"
+                        <TextBlock Grid.Column="2" Text="Add apps and websites to this workspace"
+                                   Margin="12,0" FontSize="11"
+                                   Foreground="{StaticResource MutedBrush}"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="3" Content="Add website"
+                                ToolTip="Enter a website's display name and address in a dialog."
+                                Padding="11,7"
                                 Click="AddWebsiteButton_Click" />
-                        <Button Grid.Column="4" Content="Remove" Padding="11,7" Margin="8,0,0,0"
+                        <Button Grid.Column="4" Content="Remove"
+                                ToolTip="Remove the selected app or website from this workspace."
+                                Padding="11,7" Margin="8,0,0,0"
                                 Click="RemoveItemButton_Click" />
                     </Grid>
 
                     <DataGrid x:Name="LaunchItemsGrid" Grid.Row="2" ItemsSource="{Binding Items}"
+                              ToolTip="These apps and websites open in the order shown."
                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                               CanUserReorderColumns="False" CanUserSortColumns="False"
                               SelectionMode="Single" SelectionUnit="FullRow"
@@ -202,6 +224,18 @@
                             <DataGridTextColumn Header="PROCESS NAME (OPTIONAL)" Binding="{Binding ProcessName, UpdateSourceTrigger=PropertyChanged}" Width="180" />
                         </DataGrid.Columns>
                     </DataGrid>
+                    <Border x:Name="EmptyItemsHint" Grid.Row="2" Margin="0,0,0,14"
+                            Background="White" BorderBrush="{StaticResource LineBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="22"
+                            Visibility="Collapsed" IsHitTestVisible="False">
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="This workspace is empty" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="{StaticResource InkBrush}" />
+                            <TextBlock Text="Add an app or shortcut, or choose Add website. Use Move up and Move down to set the launch order, then save your changes."
+                                       TextWrapping="Wrap" FontSize="12" LineHeight="19"
+                                       Foreground="{StaticResource MutedBrush}" Margin="0,7,0,0" />
+                        </StackPanel>
+                    </Border>
 
                     <Grid Grid.Row="3">
                         <Grid.RowDefinitions>
@@ -216,15 +250,19 @@
                                            Foreground="{StaticResource InkBrush}" Margin="0,3,0,0" />
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Content="Move up" Padding="10,6" Margin="0,0,6,0"
+                                <Button Content="Move up" ToolTip="Move the selected launch item earlier in this workspace."
+                                        Padding="10,6" Margin="0,0,6,0"
                                         Click="MoveItemUpButton_Click" />
-                                <Button Content="Move down" Padding="10,6"
+                                <Button Content="Move down" ToolTip="Move the selected launch item later in this workspace."
+                                        Padding="10,6"
                                         Click="MoveItemDownButton_Click" />
                                 <Button x:Name="SaveButton" Content="Save changes" Style="{StaticResource PrimaryButton}"
+                                        ToolTip="Save workspace names, desktop assignments, launch items, and ordering."
                                         Padding="14,7" Margin="12,0,0,0" Click="SaveButton_Click" />
                             </StackPanel>
                         </Grid>
                         <TextBox x:Name="ActivityLog" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True"
+                                 ToolTip="Launch results, skipped apps, and errors appear here."
                                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                                  FontFamily="Consolas" FontSize="11" Padding="10"
                                  Background="#FAFBFD" />
