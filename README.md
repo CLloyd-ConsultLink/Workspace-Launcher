@@ -10,15 +10,15 @@ Workspace Launcher is a native Windows desktop app for configuring and launching
 
 The first run creates Admin, Work, and Entertainment workspaces based on the existing launcher script. Workspace settings are stored at `%LOCALAPPDATA%\WorkspaceLauncher\workspaces.json`.
 
-## Publish and install
+## Build the Windows installer
 
-To create a self-contained Windows x64 release ZIP without requiring the .NET SDK on the target PC, run:
+Install Inno Setup 6, then run:
 
 ```powershell
-.\Publish-WorkspaceLauncher.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Publish-WorkspaceLauncher.ps1
 ```
 
-The output is written to `artifacts\WorkspaceLauncher-win-x64.zip`. Extract it, then right-click `Install-WorkspaceLauncher.ps1` and choose **Run with PowerShell**, or run it from PowerShell. The installer copies the app into `%LOCALAPPDATA%\Programs\WorkspaceLauncher` and adds a Start Menu shortcut. Re-run the installer to update; close the app first. Your workspace settings are kept separately and are not removed by an update.
+The self-contained installer is written to `artifacts\WorkspaceLauncher-Setup-win-x64.exe`. Share that single file. Users run the setup wizard, which installs the app under `%LOCALAPPDATA%\Programs\WorkspaceLauncher`, creates a Start Menu shortcut, and offers an optional desktop shortcut. It does not require the .NET SDK or administrator rights. Run a newer installer to update; workspace settings remain in `%LOCALAPPDATA%\WorkspaceLauncher` and are preserved when uninstalling.
 
 ## Configure workspaces
 

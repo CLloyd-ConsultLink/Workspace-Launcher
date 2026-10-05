@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('win-x64', 'win-arm64')]
+    [ValidateSet('win-x64')]
     [string]$RuntimeIdentifier = 'win-x64'
 )
 
@@ -10,10 +10,22 @@ $repositoryRoot = $PSScriptRoot
 $projectPath = Join-Path $repositoryRoot 'WorkspaceLauncher\WorkspaceLauncher.csproj'
 $artifactsPath = Join-Path $repositoryRoot 'artifacts'
 $publishPath = Join-Path $artifactsPath "WorkspaceLauncher-$RuntimeIdentifier"
-$archivePath = Join-Path $artifactsPath "WorkspaceLauncher-$RuntimeIdentifier.zip"
+$installerPath = Join-Path $repositoryRoot 'WorkspaceLauncher.iss'
+$compiler = @(
+    (Get-Command ISCC.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1),
+    (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'),
+    (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
+    (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
+) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
 
 if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) {
     throw "Workspace Launcher project was not found: $projectPath"
+}
+if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
+    throw "Inno Setup definition was not found: $installerPath"
+}
+if (-not $compiler) {
+    throw 'Inno Setup 6 is required to build the installer. Install it from https://jrsoftware.org/isdl.php, then rerun this script.'
 }
 
 New-Item -Path $artifactsPath -ItemType Directory -Force | Out-Null
@@ -39,12 +51,17 @@ if (-not (Test-Path -LiteralPath $executablePath -PathType Leaf) -or
     throw "The publish output is incomplete: expected WorkspaceLauncher.exe and workspace_desktop.ps1 in $publishPath"
 }
 
-Copy-Item -LiteralPath (Join-Path $repositoryRoot 'Install-WorkspaceLauncher.ps1') -Destination $publishPath
-
-if (Test-Path -LiteralPath $archivePath) {
-    Remove-Item -LiteralPath $archivePath -Force
+$compilerArguments = @(
+    '/Qp',
+    "/DPublishDir=$publishPath",
+    "/O$artifactsPath",
+    "/FWorkspaceLauncher-Setup-$RuntimeIdentifier",
+    $installerPath
+)
+& $compiler @compilerArguments
+if ($LASTEXITCODE -ne 0) {
+    throw "Inno Setup failed with exit code $LASTEXITCODE."
 }
-Compress-Archive -Path (Join-Path $publishPath '*') -DestinationPath $archivePath -CompressionLevel Optimal
 
 Write-Output "Published self-contained app: $publishPath"
-Write-Output "Created release archive: $archivePath"
+Write-Output "Created Windows installer: $(Join-Path $artifactsPath "WorkspaceLauncher-Setup-$RuntimeIdentifier.exe")"
