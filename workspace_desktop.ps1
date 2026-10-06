@@ -209,6 +209,7 @@ public static class VisibleWindowProbe
     {
         HashSet<int> processIds = GetProcessTree(rootProcessId);
         IntPtr foundWindow = IntPtr.Zero;
+        IntPtr matchingProcessWindow = IntPtr.Zero;
         EnumWindows((hwnd, data) =>
         {
             if (!IsWindowVisible(hwnd))
@@ -239,10 +240,18 @@ public static class VisibleWindowProbe
                     bool matchesName = String.IsNullOrWhiteSpace(processName) ||
                         String.Equals(process.ProcessName, processName, StringComparison.OrdinalIgnoreCase);
                     bool matchesTree = rootProcessId <= 0 || processIds.Contains((int)processId);
-                    if (matchesName && matchesTree)
+                    if (matchesName)
                     {
-                        foundWindow = hwnd;
-                        return false;
+                        if (matchesTree)
+                        {
+                            foundWindow = hwnd;
+                            return false;
+                        }
+
+                        if (matchingProcessWindow == IntPtr.Zero)
+                        {
+                            matchingProcessWindow = hwnd;
+                        }
                     }
                 }
             }
@@ -253,7 +262,7 @@ public static class VisibleWindowProbe
             return true;
         }, IntPtr.Zero);
 
-        return foundWindow;
+        return foundWindow != IntPtr.Zero ? foundWindow : matchingProcessWindow;
     }
 
     private static HashSet<int> GetProcessTree(int rootProcessId)
