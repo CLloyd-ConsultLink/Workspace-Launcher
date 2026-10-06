@@ -6,9 +6,13 @@ Workspace Launcher is a Windows 10/11 x64 desktop app for defining reusable grou
 
 Download and run `WorkspaceLauncher-Setup-win-x64.exe`. The setup wizard installs the app for the current Windows user, creates a Start Menu shortcut, and offers an optional desktop shortcut. Administrator access and the .NET SDK are not required.
 
-The installer is for Windows x64. The app is not currently code-signed, so Windows SmartScreen may show a warning when you or other users run the setup file.
+The installer is for Windows x64.
 
-To update, run a newer setup file and close the app first. To uninstall, use **Settings > Apps > Installed apps** (or **Apps & features**) and uninstall **Workspace Launcher**. Uninstalling removes the installed app and shortcuts, but leaves your workspace configuration in your user profile.
+Workspace Launcher checks GitHub Releases for a newer stable version when it starts. If one is available, the app asks whether to download and start the installer. Choosing **No** postpones the update until the next time the app starts. Choosing **Yes** downloads the installer, checks its SHA-256 digest against GitHub's release metadata, closes Workspace Launcher, and opens the normal setup wizard. The check needs an internet connection; if GitHub cannot be reached, you can continue using the installed version and the app will check again next time. You can also update manually by running a newer setup file and closing the app first.
+
+The SHA-256 check detects a download that differs from the file GitHub published, but it does not independently verify the publisher's identity. The setup program is not currently code-signed, so Windows SmartScreen may show a warning.
+
+To uninstall, use **Settings > Apps > Installed apps** (or **Apps & features**) and uninstall **Workspace Launcher**. Uninstalling removes the installed app and shortcuts, but leaves your workspace configuration in your user profile.
 
 ## Use the app
 
@@ -65,6 +69,10 @@ artifacts\WorkspaceLauncher-Setup-win-x64.exe
 ```
 
 Share that single setup file with users. Intermediate publish files are stored in `artifacts\WorkspaceLauncher-win-x64`; the `artifacts` directory is excluded from Git.
+
+### Publish an update
+
+The app version in `WorkspaceLauncher\WorkspaceLauncher.csproj` is the source of truth for both the app and installer. Increase it using `major.minor.patch` format, build the installer, and publish a stable GitHub Release in `CLloyd-ConsultLink/Workspace-Launcher` with a matching `v`-prefixed tag (for example, version `1.2.0` uses tag `v1.2.0`). Attach the generated `WorkspaceLauncher-Setup-win-x64.exe` file. The app checks the latest stable release only; drafts and prereleases are not offered.
 
 ## Configuration and legacy launcher
 
