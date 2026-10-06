@@ -161,6 +161,7 @@
                                        Foreground="{StaticResource MutedBrush}" Margin="0,0,0,7" />
                             <ComboBox x:Name="DesktopComboBox"
                                       ToolTip="Choose the virtual desktop where this workspace's apps should open."
+                                      DropDownOpened="DesktopComboBox_DropDownOpened"
                                       SelectedIndex="{Binding DesktopIndex, UpdateSourceTrigger=PropertyChanged}" />
                         </StackPanel>
                         <Button Grid.Column="4" Content="Launch workspace" Style="{StaticResource PrimaryButton}"
@@ -180,33 +181,31 @@
                         <TextBlock Text="LAUNCH ITEMS" FontSize="11" FontWeight="Bold"
                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"
                                    Margin="0,0,14,0" />
-                        <Button Grid.Column="1" Content="+ App or shortcut"
-                                ToolTip="Browse for an application executable (.exe) or Windows shortcut (.lnk)."
+                        <Button Grid.Column="1" Content="+ Add launch item"
+                                ToolTip="Choose whether to add an application or website, then enter its launch details."
                                 Padding="11,7"
-                                Click="AddApplicationButton_Click" />
+                                Click="AddLaunchItemButton_Click" />
                         <TextBlock Grid.Column="2" Text="Add apps and websites to this workspace"
                                    Margin="12,0" FontSize="11"
                                    Foreground="{StaticResource MutedBrush}"
                                    VerticalAlignment="Center" />
-                        <Button Grid.Column="3" Content="Add website"
-                                ToolTip="Enter a website's display name and address in a dialog."
-                                Padding="11,7"
-                                Click="AddWebsiteButton_Click" />
-                        <Button Grid.Column="4" Content="Remove"
+                        <Button Grid.Column="3" Content="Remove"
                                 ToolTip="Remove the selected app or website from this workspace."
                                 Padding="11,7" Margin="8,0,0,0"
                                 Click="RemoveItemButton_Click" />
                     </Grid>
 
                     <DataGrid x:Name="LaunchItemsGrid" Grid.Row="2" ItemsSource="{Binding Items}"
-                              ToolTip="These apps and websites open in the order shown."
-                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                              ToolTip="These apps and websites open in the order shown. Double-click a row to edit it."
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserAddRows="False" CanUserDeleteRows="False"
                               CanUserReorderColumns="False" CanUserSortColumns="False"
                               SelectionMode="Single" SelectionUnit="FullRow"
                               HeadersVisibility="Column" GridLinesVisibility="None"
                               RowHeight="44" AlternatingRowBackground="#FAFBFD"
                               BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
-                              Background="White" FontSize="12" Margin="0,0,0,14">
+                              Background="White" FontSize="12" Margin="0,0,0,14"
+                              MouseDoubleClick="LaunchItemsGrid_MouseDoubleClick">
                         <DataGrid.ColumnHeaderStyle>
                             <Style TargetType="DataGridColumnHeader">
                                 <Setter Property="Background" Value="#F7F8FB" />
@@ -221,7 +220,18 @@
                             <DataGridTextColumn Header="TYPE" Binding="{Binding Kind}" IsReadOnly="True" Width="105" />
                             <DataGridTextColumn Header="NAME" Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Width="160" />
                             <DataGridTextColumn Header="APP PATH OR WEBSITE" Binding="{Binding Target, UpdateSourceTrigger=PropertyChanged}" Width="*" />
-                            <DataGridTextColumn Header="PROCESS NAME (OPTIONAL)" Binding="{Binding ProcessName, UpdateSourceTrigger=PropertyChanged}" Width="180" />
+                            <DataGridTextColumn Binding="{Binding ProcessName, UpdateSourceTrigger=PropertyChanged}" Width="180">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="PROCESS NAME (OPTIONAL)"
+                                               ToolTip="Usually inferred from the app file. For launchers that start the real app as a child process, enter that app's process name (for example, javaw)." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding WindowTitle, UpdateSourceTrigger=PropertyChanged}" Width="210">
+                                <DataGridTextColumn.Header>
+                                    <TextBlock Text="WINDOW TITLE CONTAINS (OPTIONAL)"
+                                               ToolTip="Enter text found in the final application window but not in its splash screen. This helps the launcher wait for the real window before moving on." />
+                                </DataGridTextColumn.Header>
+                            </DataGridTextColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                     <Border x:Name="EmptyItemsHint" Grid.Row="2" Margin="0,0,0,14"
@@ -231,7 +241,7 @@
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="This workspace is empty" FontSize="16" FontWeight="SemiBold"
                                        Foreground="{StaticResource InkBrush}" />
-                            <TextBlock Text="Add an app or shortcut, or choose Add website. Use Move up and Move down to set the launch order, then save your changes."
+                            <TextBlock Text="Choose + Add launch item to add an app, shortcut, or website. Use Move up and Move down to set the launch order, then save your changes."
                                        TextWrapping="Wrap" FontSize="12" LineHeight="19"
                                        Foreground="{StaticResource MutedBrush}" Margin="0,7,0,0" />
                         </StackPanel>

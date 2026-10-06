@@ -11,9 +11,28 @@ public partial class SequenceWindow : Window
 
     public IReadOnlyList<Guid> SequenceIds => _sequence.Select(profile => profile.Id).ToList();
 
-    public SequenceWindow(IEnumerable<WorkspaceProfile> workspaces, IEnumerable<Guid> sequenceIds)
+    public int? EndDesktopIndex => EndDesktopComboBox.SelectedIndex <= 0
+        ? null
+        : EndDesktopComboBox.SelectedIndex - 1;
+
+    public SequenceWindow(
+        IEnumerable<WorkspaceProfile> workspaces,
+        IEnumerable<Guid> sequenceIds,
+        int desktopCount,
+        int? endDesktopIndex)
     {
         InitializeComponent();
+
+        EndDesktopComboBox.Items.Add("Last workspace's desktop");
+        for (int desktopIndex = 0; desktopIndex < desktopCount; desktopIndex++)
+        {
+            EndDesktopComboBox.Items.Add($"Desktop {desktopIndex + 1}");
+        }
+        EndDesktopComboBox.SelectedIndex = endDesktopIndex is int selectedDesktop &&
+                                           selectedDesktop >= 0 &&
+                                           selectedDesktop < desktopCount
+            ? selectedDesktop + 1
+            : 0;
 
         WorkspaceProfile[] profiles = workspaces.ToArray();
         var selectedIds = sequenceIds.ToHashSet();

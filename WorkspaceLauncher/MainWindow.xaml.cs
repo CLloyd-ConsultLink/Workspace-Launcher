@@ -1,8 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.IO;
 using System.Windows;
-using Microsoft.Win32;
+using System.Windows.Controls;
 using WorkspaceLauncher.Models;
 using WorkspaceLauncher.Services;
 
@@ -93,6 +92,54 @@ public partial class MainWindow : Window
         UpdateEmptyState();
     }
 
+    private void DesktopComboBox_DropDownOpened(object sender, EventArgs e)
+    {
+        try
+        {
+            int detectedCount = new DesktopCountService().GetDesktopCount();
+            if (detectedCount == _desktopCount)
+            {
+                return;
+            }
+
+            if (detectedCount < _desktopCount)
+            {
+                foreach (WorkspaceProfile profile in _profiles)
+                {
+                    if (profile.DesktopIndex >= detectedCount)
+                    {
+                        profile.DesktopIndex = detectedCount - 1;
+                        AppendLog($"{profile.Name} was reassigned to Desktop {detectedCount} because its previous desktop no longer exists.");
+                    }
+                }
+            }
+
+            while (DesktopComboBox.Items.Count > detectedCount)
+            {
+                DesktopComboBox.Items.RemoveAt(DesktopComboBox.Items.Count - 1);
+            }
+
+            while (DesktopComboBox.Items.Count < detectedCount)
+            {
+                DesktopComboBox.Items.Add($"Desktop {DesktopComboBox.Items.Count + 1}");
+            }
+
+            _desktopCount = detectedCount;
+            _store.Save(_configuration);
+            AppendLog($"Detected {_desktopCount} virtual desktop(s); desktop choices refreshed.");
+            StatusText.Text = $"Desktop choices refreshed: {_desktopCount} available.";
+        }
+        catch (Exception exception)
+        {
+            ReportActivity($"ERROR: Could not refresh virtual desktop choices. {exception.Message}");
+            MessageBox.Show(
+                $"Could not refresh the available virtual desktops.\n\n{exception.Message}",
+                "Desktop detection failed",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
     private void NewWorkspaceButton_Click(object sender, RoutedEventArgs e)
     {
         int nameIndex = _profiles.Count + 1;
@@ -139,59 +186,52 @@ public partial class MainWindow : Window
         AppendLog($"Deleted {deletedName}.");
     }
 
-    private void AddApplicationButton_Click(object sender, RoutedEventArgs e)
+    private void AddLaunchItemButton_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedWorkspace is null)
         {
             return;
         }
 
-        var dialog = new OpenFileDialog
-        {
-            Title = "Choose an application or shortcut",
-            Filter = "Applications and shortcuts (*.exe;*.lnk)|*.exe;*.lnk|All files (*.*)|*.*",
-            CheckFileExists = true,
-            Multiselect = false
-        };
-        if (dialog.ShowDialog(this) != true)
-        {
-            return;
-        }
-
-        string extension = Path.GetExtension(dialog.FileName);
-        string appName = Path.GetFileNameWithoutExtension(dialog.FileName);
-        var item = new LaunchItem
-        {
-            Kind = LaunchItemKind.Application,
-            Name = appName,
-            Target = dialog.FileName,
-            ProcessName = extension.Equals(".exe", StringComparison.OrdinalIgnoreCase) ? appName : ""
-        };
-        _selectedWorkspace.Items.Add(item);
-        LaunchItemsGrid.SelectedItem = item;
-        AppendLog($"Added application: {item.Name}");
-    }
-
-    private void AddWebsiteButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (_selectedWorkspace is null)
-        {
-            return;
-        }
-
-        var dialog = new WebsiteDialog
+        var dialog = new LaunchItemDialog
         {
             Owner = this
         };
-        if (dialog.ShowDialog() != true || dialog.Website is null)
+        if (dialog.ShowDialog() != true || dialog.Item is null)
         {
             return;
         }
 
-        _selectedWorkspace.Items.Add(dialog.Website);
-        LaunchItemsGrid.SelectedItem = dialog.Website;
-        AppendLog($"Added website: {dialog.Website.Name} ({dialog.Website.Target})");
+        _selectedWorkspace.Items.Add(dialog.Item);
+        LaunchItemsGrid.SelectedItem = dialog.Item;
+        AppendLog($"Added {GetLaunchItemTypeLabel(dialog.Item.Kind)}: {dialog.Item.Name}");
     }
+
+    private void LaunchItemsGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is not DependencyObject originalSource ||
+            ItemsControl.ContainerFromElement(LaunchItemsGrid, originalSource) is not DataGridRow ||
+            LaunchItemsGrid.SelectedItem is not LaunchItem item)
+        {
+            return;
+        }
+
+        var dialog = new LaunchItemDialog(item) { Owner = this };
+        if (dialog.ShowDialog() != true || dialog.Item is null)
+        {
+            return;
+        }
+
+        item.Kind = dialog.Item.Kind;
+        item.Name = dialog.Item.Name;
+        item.Target = dialog.Item.Target;
+        item.ProcessName = dialog.Item.ProcessName;
+        item.WindowTitle = dialog.Item.WindowTitle;
+        AppendLog($"Updated {GetLaunchItemTypeLabel(item.Kind)}: {item.Name}");
+    }
+
+    private static string GetLaunchItemTypeLabel(LaunchItemKind kind) =>
+        kind == LaunchItemKind.Website ? "website" : "application";
 
     private void RemoveItemButton_Click(object sender, RoutedEventArgs e)
     {
@@ -215,7 +255,11 @@ public partial class MainWindow : Window
 
     private void ConfigureSequenceButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SequenceWindow(_profiles, _configuration.LaunchSequence)
+        var dialog = new SequenceWindow(
+            _profiles,
+            _configuration.LaunchSequence,
+            _desktopCount,
+            _configuration.EndDesktopIndex)
         {
             Owner = this
         };
@@ -225,11 +269,13 @@ public partial class MainWindow : Window
         }
 
         Guid[] previousSequence = _configuration.LaunchSequence.ToArray();
+        int? previousEndDesktopIndex = _configuration.EndDesktopIndex;
         _configuration.LaunchSequence.Clear();
         foreach (Guid id in dialog.SequenceIds)
         {
             _configuration.LaunchSequence.Add(id);
         }
+        _configuration.EndDesktopIndex = dialog.EndDesktopIndex;
 
         if (!SaveProfiles(showSuccess: true))
         {
@@ -238,10 +284,14 @@ public partial class MainWindow : Window
             {
                 _configuration.LaunchSequence.Add(id);
             }
+            _configuration.EndDesktopIndex = previousEndDesktopIndex;
         }
         else
         {
-            AppendLog($"Saved launch sequence with {_configuration.LaunchSequence.Count} workspace(s).");
+            string endDesktop = _configuration.EndDesktopIndex is int desktopIndex
+                ? $"Desktop {desktopIndex + 1}"
+                : "the last workspace's desktop";
+            AppendLog($"Saved launch sequence with {_configuration.LaunchSequence.Count} workspace(s); ending on {endDesktop}.");
         }
     }
 
@@ -267,7 +317,10 @@ public partial class MainWindow : Window
         WorkspaceProfile[] sequence = _configuration.LaunchSequence
             .Select(id => profilesById[id])
             .ToArray();
-        await RunLaunchOperationAsync(() => _launcher.LaunchSequenceAsync(sequence, ReportActivity));
+        await RunLaunchOperationAsync(() => _launcher.LaunchSequenceAsync(
+            sequence,
+            ReportActivity,
+            _configuration.EndDesktopIndex));
     }
 
     private void MoveSelectedItem(int offset)

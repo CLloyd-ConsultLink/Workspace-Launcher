@@ -14,6 +14,7 @@ public sealed class LaunchItem : INotifyPropertyChanged
     private string _name = "";
     private string _target = "";
     private string _processName = "";
+    private string _windowTitle = "";
 
     public LaunchItemKind Kind { get; set; }
 
@@ -35,7 +36,11 @@ public sealed class LaunchItem : INotifyPropertyChanged
         set => SetField(ref _processName, value);
     }
 
-    public string WindowTitle { get; set; } = "";
+    public string WindowTitle
+    {
+        get => _windowTitle;
+        set => SetField(ref _windowTitle, value);
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
