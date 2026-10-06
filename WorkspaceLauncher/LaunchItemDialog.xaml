@@ -1,0 +1,99 @@
+<Window x:Class="WorkspaceLauncher.LaunchItemDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Add launch item" Width="600" Height="610"
+        MinWidth="560" MinHeight="570" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource CanvasBrush}" FontFamily="Segoe UI">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="0,0,0,18">
+            <TextBlock x:Name="DialogHeading" Text="Add a launch item" FontSize="20" FontWeight="Bold"
+                       Foreground="{StaticResource InkBrush}" />
+            <TextBlock Text="Choose an item type, then enter the details for this workspace."
+                       FontSize="12" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,14">
+            <TextBlock Text="ITEM TYPE" FontSize="10" FontWeight="Bold"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,0,0,6" />
+            <ComboBox x:Name="ItemTypeComboBox" SelectedIndex="0"
+                      SelectionChanged="ItemTypeComboBox_SelectionChanged"
+                      ToolTip="Choose whether this launch item is an application or a website."
+                      Padding="10,9">
+                <ComboBoxItem Content="Application or shortcut" Tag="Application" />
+                <ComboBoxItem Content="Website" Tag="Website" />
+            </ComboBox>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Margin="0,0,0,14">
+            <TextBlock Text="NAME" FontSize="10" FontWeight="Bold"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,0,0,6" />
+            <TextBox x:Name="ItemNameBox" ToolTip="The name shown in the workspace launch list."
+                     Padding="10,9" />
+        </StackPanel>
+
+        <StackPanel x:Name="ApplicationFieldsPanel" Grid.Row="3" Margin="0,0,0,14">
+            <TextBlock Text="APPLICATION OR SHORTCUT" FontSize="10" FontWeight="Bold"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,0,0,6" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="ApplicationPathBox" ToolTip="Path to the application executable or Windows shortcut."
+                         Padding="10,9" />
+                <Button Grid.Column="2" Content="Browse..." Padding="12,8"
+                        Click="BrowseButton_Click" ToolTip="Browse for an application executable (.exe) or shortcut (.lnk)." />
+            </Grid>
+        </StackPanel>
+
+        <StackPanel x:Name="WebsiteFieldsPanel" Grid.Row="3" Margin="0,0,0,14" Visibility="Collapsed">
+            <TextBlock Text="WEBSITE ADDRESS" FontSize="10" FontWeight="Bold"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,0,0,6" />
+            <TextBox x:Name="WebsiteAddressBox"
+                     ToolTip="Enter the complete address beginning with https:// or http://."
+                     Padding="10,9" />
+        </StackPanel>
+
+        <StackPanel x:Name="ApplicationOptionsPanel" Grid.Row="4">
+            <StackPanel Margin="0,0,0,14">
+                <TextBlock Text="PROCESS NAME (OPTIONAL)" FontSize="10" FontWeight="Bold"
+                           Foreground="{StaticResource MutedBrush}" Margin="0,0,0,6" />
+                <TextBox x:Name="ProcessNameBox"
+                         ToolTip="Usually inferred from an executable. For a launcher that starts the real app as a child process, enter the child app process name, such as javaw."
+                         Padding="10,9" />
+            </StackPanel>
+            <StackPanel>
+                <TextBlock Text="WINDOW TITLE CONTAINS (OPTIONAL)" FontSize="10" FontWeight="Bold"
+                           Foreground="{StaticResource MutedBrush}" Margin="0,0,0,6" />
+                <TextBox x:Name="WindowTitleBox"
+                         ToolTip="Enter text found in the main app window but not its splash screen. This helps the launcher wait for the real window before moving on."
+                         Padding="10,9" />
+            </StackPanel>
+        </StackPanel>
+
+        <TextBlock x:Name="ValidationMessage" Grid.Row="5" Margin="0,9,0,0"
+                   TextWrapping="Wrap" FontSize="11" Foreground="#B54450"
+                   VerticalAlignment="Top" />
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" MinWidth="88" Margin="0,0,8,0" IsCancel="True"
+                    ToolTip="Close without adding or changing this launch item." />
+            <Button x:Name="SaveItemButton" Content="Add launch item" MinWidth="128"
+                    Style="{StaticResource PrimaryButton}" IsDefault="True"
+                    Click="SaveItemButton_Click"
+                    ToolTip="Validate and save this launch item to the workspace." />
+        </StackPanel>
+    </Grid>
+</Window>

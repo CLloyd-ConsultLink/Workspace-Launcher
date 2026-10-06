@@ -7,14 +7,19 @@ namespace WorkspaceLauncher.Services;
 
 public sealed class WorkspaceLauncherService
 {
+    private const int WindowWaitTimeoutSeconds = 120;
+
     public async Task LaunchProfileAsync(WorkspaceProfile profile, Action<string> report)
     {
         report($"Switching to desktop {profile.DesktopIndex + 1} for {profile.Name}...");
-        await RunDesktopHelperAsync(profile.DesktopIndex);
-        await LaunchItemsAsync(profile, report);
+        Guid targetDesktopId = await RunDesktopHelperAsync(profile.DesktopIndex);
+        await LaunchItemsAsync(profile, targetDesktopId, report);
     }
 
-    public async Task LaunchSequenceAsync(IEnumerable<WorkspaceProfile> profiles, Action<string> report)
+    public async Task LaunchSequenceAsync(
+        IEnumerable<WorkspaceProfile> profiles,
+        Action<string> report,
+        int? endDesktopIndex = null)
     {
         var sequence = profiles.ToList();
         if (sequence.Count == 0)
@@ -26,9 +31,18 @@ public sealed class WorkspaceLauncherService
         {
             await LaunchProfileAsync(profile, report);
         }
+
+        if (endDesktopIndex is int desktopIndex)
+        {
+            report($"Switching to Desktop {desktopIndex + 1} after the launch sequence...");
+            await RunDesktopHelperAsync(desktopIndex);
+        }
     }
 
-    private static async Task LaunchItemsAsync(WorkspaceProfile profile, Action<string> report)
+    private static async Task LaunchItemsAsync(
+        WorkspaceProfile profile,
+        Guid targetDesktopId,
+        Action<string> report)
     {
         foreach (var item in profile.Items)
         {
@@ -59,23 +73,40 @@ public sealed class WorkspaceLauncherService
             }
 
             string processName = GetProcessName(item);
-            if (processName.Length > 0 && IsRunning(processName))
+            if (processName.Length > 0 &&
+                await HasVisibleWindowAsync(processName, item.WindowTitle, item.Name))
             {
-                report($"{item.Name} is already running; skipped.");
+                report($"{item.Name} already has a visible window; skipped.");
                 continue;
             }
 
-            Process.Start(new ProcessStartInfo(item.Target) { UseShellExecute = true });
+            int rootProcessId;
+            using (Process? launchedProcess = Process.Start(
+                new ProcessStartInfo(item.Target) { UseShellExecute = true }))
+            {
+                rootProcessId = launchedProcess?.Id ?? 0;
+            }
             report($"Launched {item.Name}.");
 
             if (processName.Length > 0)
             {
-                await WaitForWindowAsync(processName, item.WindowTitle, item.Name, report);
+                await WaitForWindowAsync(
+                    processName,
+                    item.WindowTitle,
+                    item.Name,
+                    targetDesktopId,
+                    profile.DesktopIndex,
+                    rootProcessId,
+                    report);
+            }
+            else
+            {
+                report($"WARNING: {item.Name} was launched, but its window cannot be tracked. Configure a process name to place late-opening windows on the assigned desktop.");
             }
         }
     }
 
-    private static async Task RunDesktopHelperAsync(int desktopIndex)
+    private static async Task<Guid> RunDesktopHelperAsync(int desktopIndex)
     {
         string scriptPath = Path.Combine(AppContext.BaseDirectory, "workspace_desktop.ps1");
         if (!File.Exists(scriptPath))
@@ -97,6 +128,7 @@ public sealed class WorkspaceLauncherService
         startInfo.ArgumentList.Add(scriptPath);
         startInfo.ArgumentList.Add("-DesktopIndex");
         startInfo.ArgumentList.Add(desktopIndex.ToString());
+        startInfo.ArgumentList.Add("-CaptureDesktopId");
 
         using var process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Could not start PowerShell for desktop switching.");
@@ -104,22 +136,97 @@ public sealed class WorkspaceLauncherService
         Task<string> errorTask = process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
         string error = await errorTask;
-        _ = await outputTask;
+        string output = (await outputTask).Trim();
         if (process.ExitCode != 0)
         {
             throw new InvalidOperationException(string.IsNullOrWhiteSpace(error)
                 ? $"Desktop switching failed with exit code {process.ExitCode}."
                 : error.Trim());
         }
+
+        if (!Guid.TryParse(output, out Guid desktopId) || desktopId == Guid.Empty)
+        {
+            throw new InvalidOperationException($"Desktop switching did not return a valid desktop identifier: {output}");
+        }
+
+        return desktopId;
     }
 
     private static async Task WaitForWindowAsync(
         string processName,
         string windowTitle,
         string appName,
+        Guid targetDesktopId,
+        int desktopIndex,
+        int rootProcessId,
         Action<string> report)
     {
+        ProcessStartInfo startInfo = CreateWindowProbeStartInfo(
+            processName,
+            windowTitle,
+            waitForWindow: true,
+            targetDesktopId: targetDesktopId,
+            rootProcessId: rootProcessId);
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException($"Could not wait for the {appName} window.");
+        Task<string> errorTask = process.StandardError.ReadToEndAsync();
+        Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        _ = await outputTask;
+        string error = await errorTask;
+        if (process.ExitCode == 0)
+        {
+            report($"{appName} window placed on Desktop {desktopIndex + 1}.");
+        }
+        else if (process.ExitCode == 2)
+        {
+            report($"WARNING: {appName} launched, but its window was not detected within {WindowWaitTimeoutSeconds} seconds and could not be placed on Desktop {desktopIndex + 1}. {error.Trim()}");
+        }
+        else
+        {
+            report($"WARNING: {appName} launched, but its window could not be placed on Desktop {desktopIndex + 1}. {error.Trim()}");
+        }
+    }
+
+    private static async Task<bool> HasVisibleWindowAsync(string processName, string windowTitle, string appName)
+    {
+        ProcessStartInfo startInfo = CreateWindowProbeStartInfo(processName, windowTitle, waitForWindow: false);
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException($"Could not check whether {appName} has a visible window.");
+        Task<string> errorTask = process.StandardError.ReadToEndAsync();
+        Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        _ = await outputTask;
+        string error = await errorTask;
+
+        if (process.ExitCode == 0)
+        {
+            return true;
+        }
+
+        if (process.ExitCode == 1 && string.IsNullOrWhiteSpace(error))
+        {
+            return false;
+        }
+
+        throw new InvalidOperationException(string.IsNullOrWhiteSpace(error)
+            ? $"Could not check whether {appName} has a visible window (exit code {process.ExitCode})."
+            : error.Trim());
+    }
+
+    private static ProcessStartInfo CreateWindowProbeStartInfo(
+        string processName,
+        string windowTitle,
+        bool waitForWindow,
+        Guid? targetDesktopId = null,
+        int rootProcessId = 0)
+    {
         string scriptPath = Path.Combine(AppContext.BaseDirectory, "workspace_desktop.ps1");
+        if (!File.Exists(scriptPath))
+        {
+            throw new FileNotFoundException("The desktop switching helper is missing.", scriptPath);
+        }
+
         var startInfo = new ProcessStartInfo("powershell.exe")
         {
             UseShellExecute = false,
@@ -139,38 +246,27 @@ public sealed class WorkspaceLauncherService
             startInfo.ArgumentList.Add("-WindowTitle");
             startInfo.ArgumentList.Add(windowTitle);
         }
-        startInfo.ArgumentList.Add("-WaitForWindow");
-        startInfo.ArgumentList.Add("-TimeoutSeconds");
-        startInfo.ArgumentList.Add("60");
 
-        using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException($"Could not wait for the {appName} window.");
-        Task<string> errorTask = process.StandardError.ReadToEndAsync();
-        Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
-        await process.WaitForExitAsync();
-        _ = await outputTask;
-        string error = await errorTask;
-        if (process.ExitCode != 0)
+        if (waitForWindow)
         {
-            report($"WARNING: {appName} launched, but its window was not detected within 60 seconds. {error.Trim()}");
+            startInfo.ArgumentList.Add("-WaitForWindow");
+            startInfo.ArgumentList.Add("-TimeoutSeconds");
+            startInfo.ArgumentList.Add(WindowWaitTimeoutSeconds.ToString());
         }
-    }
 
-    private static bool IsRunning(string processName)
-    {
-        string normalizedName = Path.GetFileNameWithoutExtension(processName);
-        Process[] processes = Process.GetProcessesByName(normalizedName);
-        try
+        if (targetDesktopId is Guid desktopId)
         {
-            return processes.Length > 0;
+            startInfo.ArgumentList.Add("-MoveToDesktopId");
+            startInfo.ArgumentList.Add(desktopId.ToString());
         }
-        finally
+
+        if (rootProcessId > 0)
         {
-            foreach (Process process in processes)
-            {
-                process.Dispose();
-            }
+            startInfo.ArgumentList.Add("-RootProcessId");
+            startInfo.ArgumentList.Add(rootProcessId.ToString());
         }
+
+        return startInfo;
     }
 
     private static string GetProcessName(LaunchItem item)

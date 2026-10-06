@@ -72,5 +72,37 @@
             <Setter Property="BorderBrush" Value="{StaticResource LineBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
+
+        <Style TargetType="ToolTip">
+            <Setter Property="Placement" Value="Top" />
+            <Setter Property="HorizontalOffset" Value="0" />
+            <Setter Property="VerticalOffset" Value="0" />
+            <Setter Property="MaxWidth" Value="320" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+            <Setter Property="Background" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="#BFC7D5" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}"
+                                CornerRadius="2">
+                            <ContentPresenter Content="{TemplateBinding Content}">
+                                <ContentPresenter.ContentTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="320" />
+                                    </DataTemplate>
+                                </ContentPresenter.ContentTemplate>
+                            </ContentPresenter>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Application.Resources>
 </Application>

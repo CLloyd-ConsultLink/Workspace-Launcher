@@ -17,9 +17,8 @@ On first run, the app starts with no workspaces, launch items, or websites. Add 
 ### Edit workspaces
 
 - Choose **+ New** to create a workspace; edit its name and choose a virtual desktop.
-- Choose **+ App or shortcut** to browse for an `.exe` or `.lnk` file.
-- Choose **Add website** to open a dialog. Enter a display name and a complete `http://` or `https://` address, then confirm to add it.
-- Edit launch-item names, targets, and optional process names in the table. Process names are used to skip an app that is already running. If left blank, the app infers the process name from an `.exe` target when possible.
+- Choose **+ Add launch item** to open one dialog, choose **Application or shortcut** or **Website**, and enter the relevant details. Use **Browse...** to select an `.exe` or `.lnk` file; process names for `.exe` files are filled in automatically when possible.
+- The launch-item table is read-only. Double-click any row to edit it in the same launch-item dialog. For launchers that start the actual application as a child process, set the process name to the child app (for example, `javaw` for a Java application); the launcher tracks the launched process tree so it can find and move the child window. If an app shows a splash or launcher window before its main window, set **Window title contains** to text unique to the main window so the launcher doesn't mistake the splash for the finished app.
 - Select an item and use **Move up** or **Move down** to change its launch order. Use **Remove** to delete the selected item, then choose **Save changes**.
 - Choose **Delete workspace** to remove the selected profile. The workspace list may be left empty.
 
@@ -27,17 +26,17 @@ Hover over controls for brief tips. When there are no workspaces or the selected
 
 ### Configure and launch a sequence
 
-Choose **Configure sequence** to move profiles into or out of the sequence and arrange their order. The sequence can contain any subset of your workspaces. Choose **Save sequence** to save it, then **Launch sequence** to run each selected workspace in order. Each workspace switches to its assigned desktop before opening its items; the app remains on the last workspace's desktop afterward.
+Choose **Configure sequence** to move profiles into or out of the sequence, arrange their order, and choose the desktop to leave active when the sequence finishes. The sequence can contain any subset of your workspaces. Choose **Save sequence** to save it, then **Launch sequence** to run each selected workspace in order. Each workspace switches to its assigned desktop before opening its items. By default the app remains on the last workspace's desktop; select a specific desktop in the sequence settings to end there instead.
 
 You can also choose **Launch workspace** in the editor to run just the selected workspace.
 
-During launch, websites open in the default browser. Applications already running under their configured process name are skipped. After starting a process-detectable app, the launcher waits up to 60 seconds for its window; if no matching window appears, it reports a warning and continues. Missing application files and invalid websites are reported in Launch Activity.
+During launch, websites open in the default browser. Applications with an existing matching visible window are skipped; background-only processes are not treated as already open. After starting an app with a detectable process name, the launcher waits up to 120 seconds for its visible window and moves it to the workspace's assigned desktop, even if you switched desktops while it was starting. The launched process and its child processes are tracked, so launchers that start the real application separately can be supported by setting its process name in the table. If the window is not detected or cannot be moved, Launch Activity reports a warning. Applications with no resolvable process name and websites opened in the default browser cannot be moved reliably. Missing application files and invalid websites are also reported in Launch Activity.
 
 ## Virtual desktop behavior
 
-The app detects the current number of Windows virtual desktops when it starts and only offers those desktops in workspace settings. If the count has decreased since a workspace was configured, its desktop is adjusted to the last available desktop and the configuration is saved. Restart the app after adding or removing virtual desktops to refresh the options.
+The app detects the current number of Windows virtual desktops when it starts and refreshes the desktop choices whenever you open the desktop dropdown. If the count has decreased since a workspace was configured, its desktop is adjusted to the last available desktop and the configuration is saved. You do not need to restart the app after adding or removing virtual desktops. For apps launched by the Workspace Launcher, late-opening windows are moved to the assigned desktop after they appear; this does not affect apps launched manually outside the launcher.
 
-Desktop detection and switching use Windows shell interfaces plus keyboard input. The installed helper is `workspace_desktop.ps1`, stored beside the app executable. If detection or switching is unavailable on a particular Windows build, the app reports an error rather than silently choosing a desktop.
+Desktop detection and switching use Windows shell interfaces plus keyboard input. Moving a window between processes uses an internal Windows shell interface that may vary between Windows builds. The installed helper is `workspace_desktop.ps1`, stored beside the app executable. If detection, switching, or window relocation is unavailable on a particular Windows build, the app reports an error or warning rather than silently claiming success.
 
 ## Developer: run locally
 
