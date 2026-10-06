@@ -28,6 +28,14 @@ if (-not $compiler) {
     throw 'Inno Setup 6 is required to build the installer. Install it from https://jrsoftware.org/isdl.php, then rerun this script.'
 }
 
+$appVersion = (& dotnet msbuild $projectPath -getProperty:Version | Out-String).Trim()
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not read the app version from $projectPath."
+}
+if ($appVersion -notmatch '^\d+\.\d+\.\d+$') {
+    throw "The app version must use major.minor.patch format; found '$appVersion'."
+}
+
 New-Item -Path $artifactsPath -ItemType Directory -Force | Out-Null
 if (Test-Path -LiteralPath $publishPath) {
     Remove-Item -LiteralPath $publishPath -Recurse -Force
@@ -54,6 +62,7 @@ if (-not (Test-Path -LiteralPath $executablePath -PathType Leaf) -or
 $compilerArguments = @(
     '/Qp',
     "/DPublishDir=$publishPath",
+    "/DMyAppVersion=$appVersion",
     "/O$artifactsPath",
     "/FWorkspaceLauncher-Setup-$RuntimeIdentifier",
     $installerPath

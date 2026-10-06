@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using WorkspaceLauncher.Models;
@@ -11,11 +12,13 @@ public partial class MainWindow : Window
 {
     private readonly WorkspaceStore _store = new();
     private readonly WorkspaceLauncherService _launcher = new();
+    private readonly UpdateService _updateService = new();
     private WorkspaceConfiguration _configuration = new();
     private ObservableCollection<WorkspaceProfile> _profiles = [];
     private WorkspaceProfile? _selectedWorkspace;
     private bool _isBusy;
     private bool _launchHadItemErrors;
+    private bool _updateCheckStarted;
     private int _desktopCount;
 
     public MainWindow()
@@ -64,6 +67,83 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             Application.Current.Shutdown();
+        }
+    }
+
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (_updateCheckStarted)
+        {
+            return;
+        }
+
+        _updateCheckStarted = true;
+
+        UpdateRelease? update;
+        try
+        {
+            update = await _updateService.CheckForUpdateAsync();
+        }
+        catch (Exception exception)
+        {
+            AppendLog($"Could not check for updates; you can continue using the app. {exception.Message}");
+            StatusText.Text = "Update check failed; Workspace Launcher is ready.";
+            return;
+        }
+
+        if (update is null)
+        {
+            return;
+        }
+
+        while (_isBusy)
+        {
+            await Task.Delay(250);
+        }
+
+        AppendLog($"Workspace Launcher {update.TagName} is available.");
+        MessageBoxResult choice = MessageBox.Show(
+            $"Workspace Launcher {update.Version} is available. Download and start the installer now?\n\n" +
+            "Workspace Launcher will close while the update is installed.",
+            "Update available",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Information);
+        if (choice != MessageBoxResult.Yes)
+        {
+            AppendLog("Update postponed. You will be asked again the next time the app starts.");
+            return;
+        }
+
+        SetBusy(true);
+        try
+        {
+            StatusText.Text = "Downloading and verifying the update...";
+            AppendLog("Downloading the update installer...");
+            string installerPath = await _updateService.DownloadInstallerAsync(update);
+
+            using Process? installer = Process.Start(new ProcessStartInfo(installerPath)
+            {
+                UseShellExecute = true
+            });
+            if (installer is null)
+            {
+                throw new InvalidOperationException("Windows did not start the update installer.");
+            }
+
+            AppendLog("Verified installer started. Closing Workspace Launcher for the update.");
+            Application.Current.Shutdown();
+        }
+        catch (Exception exception)
+        {
+            SetBusy(false);
+            AppendLog($"ERROR: The update could not be installed. {exception.Message}");
+            StatusText.Text = "Update failed; Workspace Launcher is ready.";
+            MessageBox.Show(
+                $"The update could not be downloaded or started.\n\n{exception.Message}\n\n" +
+                "You can continue using Workspace Launcher and try again next time.",
+                "Update failed",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
     }
 

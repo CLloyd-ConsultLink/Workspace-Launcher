@@ -6,7 +6,8 @@
         Width="1180" Height="800" MinWidth="980" MinHeight="680"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource CanvasBrush}"
-        FontFamily="Segoe UI">
+        FontFamily="Segoe UI"
+        Loaded="MainWindow_Loaded">
     <Grid Margin="28">
         <Grid.RowDefinitions>
             <RowDefinition Height="66" />

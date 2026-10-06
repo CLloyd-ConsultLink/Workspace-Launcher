@@ -1,5 +1,4 @@
 #define MyAppName "Workspace Launcher"
-#define MyAppVersion "1.0.0"
 #define MyAppPublisher "Workspace Launcher"
 #define MyAppExeName "WorkspaceLauncher.exe"
 
