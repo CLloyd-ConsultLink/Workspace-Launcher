@@ -125,7 +125,7 @@ public sealed class UpdateService
         {
             Timeout = TimeSpan.FromSeconds(15)
         };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("WorkspaceLauncher-UpdateCheck/1.0");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("WorkspaceManager-UpdateCheck/1.0");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return client;
     }

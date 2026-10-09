@@ -9,5 +9,6 @@ namespace WorkspaceLauncher;
 /// </summary>
 public partial class App : Application
 {
+    public string Version { get; } =
+        typeof(App).Assembly.GetName().Version?.ToString(3) ?? "Unknown";
 }
-

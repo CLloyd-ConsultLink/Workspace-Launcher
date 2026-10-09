@@ -1,5 +1,5 @@
 @echo off
-title Multi-Workspace Launcher
+title Workspace Manager
 cls
 echo Launcher trace: desktop-routing-v1 - %~f0
 

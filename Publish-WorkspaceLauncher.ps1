@@ -19,7 +19,7 @@ $compiler = @(
 ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
 
 if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) {
-    throw "Workspace Launcher project was not found: $projectPath"
+    throw "Workspace Manager project was not found: $projectPath"
 }
 if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
     throw "Inno Setup definition was not found: $installerPath"
@@ -33,7 +33,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Could not read the app version from $projectPath."
 }
 if ($appVersion -notmatch '^\d+\.\d+\.\d+$') {
-    throw "The app version must use major.minor.patch format; found '$appVersion'."
+    throw "The Workspace Manager version must use major.minor.patch format; found '$appVersion'."
 }
 
 New-Item -Path $artifactsPath -ItemType Directory -Force | Out-Null
@@ -49,14 +49,14 @@ dotnet publish $projectPath `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     --output $publishPath
 if ($LASTEXITCODE -ne 0) {
-    throw "dotnet publish failed with exit code $LASTEXITCODE."
+    throw "Workspace Manager publish failed with exit code $LASTEXITCODE."
 }
 
 $executablePath = Join-Path $publishPath 'WorkspaceLauncher.exe'
 $helperPath = Join-Path $publishPath 'workspace_desktop.ps1'
 if (-not (Test-Path -LiteralPath $executablePath -PathType Leaf) -or
     -not (Test-Path -LiteralPath $helperPath -PathType Leaf)) {
-    throw "The publish output is incomplete: expected WorkspaceLauncher.exe and workspace_desktop.ps1 in $publishPath"
+    throw "The Workspace Manager publish output is incomplete: expected WorkspaceLauncher.exe and workspace_desktop.ps1 in $publishPath"
 }
 
 $compilerArguments = @(
@@ -69,8 +69,8 @@ $compilerArguments = @(
 )
 & $compiler @compilerArguments
 if ($LASTEXITCODE -ne 0) {
-    throw "Inno Setup failed with exit code $LASTEXITCODE."
+    throw "Workspace Manager installer build failed with exit code $LASTEXITCODE."
 }
 
-Write-Output "Published self-contained app: $publishPath"
-Write-Output "Created Windows installer: $(Join-Path $artifactsPath "WorkspaceLauncher-Setup-$RuntimeIdentifier.exe")"
+Write-Output "Published self-contained Workspace Manager app: $publishPath"
+Write-Output "Created Workspace Manager installer: $(Join-Path $artifactsPath "WorkspaceLauncher-Setup-$RuntimeIdentifier.exe")"
