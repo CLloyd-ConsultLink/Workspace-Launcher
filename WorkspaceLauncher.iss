@@ -1,5 +1,5 @@
-#define MyAppName "Workspace Launcher"
-#define MyAppPublisher "Workspace Launcher"
+#define MyAppName "Workspace Manager"
+#define MyAppPublisher "Workspace Manager"
 #define MyAppExeName "WorkspaceLauncher.exe"
 
 #ifndef PublishDir
@@ -36,6 +36,10 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 
 [Files]
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[InstallDelete]
+Type: files; Name: "{autoprograms}\Workspace Launcher.lnk"
+Type: files; Name: "{autodesktop}\Workspace Launcher.lnk"
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"

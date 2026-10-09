@@ -63,7 +63,7 @@ public partial class MainWindow : Window
         {
             MessageBox.Show(
                 $"Virtual desktops or workspace settings could not be initialized.\n\n{exception.Message}",
-                "Workspace Launcher",
+                "Workspace Manager",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             Application.Current.Shutdown();
@@ -87,7 +87,7 @@ public partial class MainWindow : Window
         catch (Exception exception)
         {
             AppendLog($"Could not check for updates; you can continue using the app. {exception.Message}");
-            StatusText.Text = "Update check failed; Workspace Launcher is ready.";
+            StatusText.Text = "Update check failed; Workspace Manager is ready.";
             return;
         }
 
@@ -101,10 +101,10 @@ public partial class MainWindow : Window
             await Task.Delay(250);
         }
 
-        AppendLog($"Workspace Launcher {update.TagName} is available.");
+        AppendLog($"Workspace Manager {update.TagName} is available.");
         MessageBoxResult choice = MessageBox.Show(
-            $"Workspace Launcher {update.Version} is available. Download and start the installer now?\n\n" +
-            "Workspace Launcher will close while the update is installed.",
+            $"Workspace Manager {update.Version} is available. Download and start the installer now?\n\n" +
+            "Workspace Manager will close while the update is installed.",
             "Update available",
             MessageBoxButton.YesNo,
             MessageBoxImage.Information);
@@ -130,17 +130,17 @@ public partial class MainWindow : Window
                 throw new InvalidOperationException("Windows did not start the update installer.");
             }
 
-            AppendLog("Verified installer started. Closing Workspace Launcher for the update.");
+            AppendLog("Verified installer started. Closing Workspace Manager for the update.");
             Application.Current.Shutdown();
         }
         catch (Exception exception)
         {
             SetBusy(false);
             AppendLog($"ERROR: The update could not be installed. {exception.Message}");
-            StatusText.Text = "Update failed; Workspace Launcher is ready.";
+            StatusText.Text = "Update failed; Workspace Manager is ready.";
             MessageBox.Show(
                 $"The update could not be downloaded or started.\n\n{exception.Message}\n\n" +
-                "You can continue using Workspace Launcher and try again next time.",
+                "You can continue using Workspace Manager and try again next time.",
                 "Update failed",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);

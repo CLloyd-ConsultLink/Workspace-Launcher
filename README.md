@@ -1,18 +1,18 @@
-# Workspace Launcher
+# Workspace Manager
 
-Workspace Launcher is a Windows 10/11 x64 desktop app for defining reusable groups of applications and websites, then opening them across Windows virtual desktops. It supports configurable workspace profiles and a separate, ordered launch sequence.
+Workspace Manager is a Windows 10/11 x64 desktop app for defining reusable groups of applications and websites, then opening them across Windows virtual desktops. It supports configurable workspace profiles and a separate, ordered launch sequence.
 
 ## Install the app
 
-Download and run `WorkspaceLauncher-Setup-win-x64.exe`. The setup wizard installs the app for the current Windows user, creates a Start Menu shortcut, and offers an optional desktop shortcut. Administrator access and the .NET SDK are not required.
+Download and run `WorkspaceLauncher-Setup-win-x64.exe`. The setup wizard installs the app for the current Windows user, creates a **Workspace Manager** Start Menu shortcut, and offers an optional desktop shortcut. Administrator access and the .NET SDK are not required. The setup filename and internal installation/configuration paths retain their original `WorkspaceLauncher` names to support in-place upgrades and preserve existing workspace settings.
 
 The installer is for Windows x64.
 
-Workspace Launcher checks GitHub Releases for a newer stable version when it starts. If one is available, the app asks whether to download and start the installer. Choosing **No** postpones the update until the next time the app starts. Choosing **Yes** downloads the installer, checks its SHA-256 digest against GitHub's release metadata, closes Workspace Launcher, and opens the normal setup wizard. The check needs an internet connection; if GitHub cannot be reached, you can continue using the installed version and the app will check again next time. You can also update manually by running a newer setup file and closing the app first.
+Workspace Manager checks GitHub Releases for a newer stable version when it starts. If one is available, the app asks whether to download and start the installer. Choosing **No** postpones the update until the next time the app starts. Choosing **Yes** downloads the installer, checks its SHA-256 digest against GitHub's release metadata, closes Workspace Manager, and opens the normal setup wizard. The check needs an internet connection; if GitHub cannot be reached, you can continue using the installed version and the app will check again next time. You can also update manually by running a newer setup file and closing the app first.
 
 The SHA-256 check detects a download that differs from the file GitHub published, but it does not independently verify the publisher's identity. The setup program is not currently code-signed, so Windows SmartScreen may show a warning.
 
-To uninstall, use **Settings > Apps > Installed apps** (or **Apps & features**) and uninstall **Workspace Launcher**. Uninstalling removes the installed app and shortcuts, but leaves your workspace configuration in your user profile.
+To uninstall, use **Settings > Apps > Installed apps** (or **Apps & features**) and uninstall **Workspace Manager**. Uninstalling removes the installed app and shortcuts, but leaves your workspace configuration in your user profile.
 
 ## Use the app
 
@@ -38,7 +38,7 @@ During launch, websites open in the default browser. Applications with an existi
 
 ## Virtual desktop behavior
 
-The app detects the current number of Windows virtual desktops when it starts and refreshes the desktop choices whenever you open the desktop dropdown. If the count has decreased since a workspace was configured, its desktop is adjusted to the last available desktop and the configuration is saved. You do not need to restart the app after adding or removing virtual desktops. For apps launched by the Workspace Launcher, late-opening windows are moved to the assigned desktop after they appear; this does not affect apps launched manually outside the launcher.
+The app detects the current number of Windows virtual desktops when it starts and refreshes the desktop choices whenever you open the desktop dropdown. If the count has decreased since a workspace was configured, its desktop is adjusted to the last available desktop and the configuration is saved. You do not need to restart the app after adding or removing virtual desktops. For apps launched by Workspace Manager, late-opening windows are moved to the assigned desktop after they appear; this does not affect apps launched manually outside the app.
 
 Desktop detection and switching use Windows shell interfaces plus keyboard input. Moving a window between processes uses an internal Windows shell interface that may vary between Windows builds. The installed helper is `workspace_desktop.ps1`, stored beside the app executable. If detection, switching, or window relocation is unavailable on a particular Windows build, the app reports an error or warning rather than silently claiming success.
 
@@ -72,7 +72,7 @@ Share that single setup file with users. Intermediate publish files are stored i
 
 ### Publish an update
 
-The app version in `WorkspaceLauncher\WorkspaceLauncher.csproj` is the source of truth for both the app and installer. Increase it using `major.minor.patch` format, build the installer, and publish a stable GitHub Release in `CLloyd-ConsultLink/Workspace-Launcher` with a matching `v`-prefixed tag (for example, version `1.2.0` uses tag `v1.2.0`). Attach the generated `WorkspaceLauncher-Setup-win-x64.exe` file. The app checks the latest stable release only; drafts and prereleases are not offered.
+The app version in `WorkspaceLauncher\WorkspaceLauncher.csproj` is the source of truth for both the app and installer. Increase it using `major.minor.patch` format, build the installer, and publish a stable GitHub Release in `CLloyd-ConsultLink/Workspace-Launcher` with a matching `v`-prefixed tag (for example, version `1.4.0` uses tag `v1.4.0`). Attach the generated `WorkspaceLauncher-Setup-win-x64.exe` file. Keep this asset filename so existing installations can download updates. The app checks the latest stable release only; drafts and prereleases are not offered.
 
 ## Configuration and legacy launcher
 
@@ -82,4 +82,4 @@ Workspace settings are stored per user at:
 %LOCALAPPDATA%\WorkspaceLauncher\workspaces.json
 ```
 
-The original `workspace_launcher.bat` remains in the repository as a legacy command-line launcher with its original fixed app groups. Its GitHub link is generic, and its YouTube Music shortcut lookup uses the current user's `%APPDATA%` path. The WPF app is the recommended way to configure profiles and sequences.
+The `workspace_launcher.bat` remains in the repository as a legacy command-line launcher with its original fixed app groups. Its console title uses the Workspace Manager brand. Its GitHub link is generic, and its YouTube Music shortcut lookup uses the current user's `%APPDATA%` path. The WPF app is the recommended way to configure profiles and sequences.
