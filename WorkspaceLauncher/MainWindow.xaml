@@ -181,7 +181,7 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="LAUNCH ITEMS" FontSize="11" FontWeight="Bold"
                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"
@@ -190,56 +190,24 @@
                                 ToolTip="Choose whether to add an application, website, or file, then enter its details."
                                 Padding="11,7"
                                 Click="AddLaunchItemButton_Click" />
-                        <TextBlock Grid.Column="2" Text="Add applications, websites, and files to this workspace"
-                                   Margin="12,0" FontSize="11"
-                                   Foreground="{StaticResource MutedBrush}"
-                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="2" Content="Remove"
+                                ToolTip="Remove the selected application, website, or file from this workspace."
+                                Padding="11,7" Margin="8,0,0,0"
+                                Click="RemoveItemButton_Click" />
                     </Grid>
 
                     <Grid Grid.Row="2" Margin="0,0,0,14">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="34" />
-                            <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <ScrollViewer x:Name="RemoveItemsScrollViewer"
-                                      VerticalScrollBarVisibility="Hidden"
-                                      HorizontalScrollBarVisibility="Disabled"
-                                      ScrollChanged="ItemsScrollViewer_ScrollChanged">
-                            <StackPanel>
-                                <Border Height="38" />
-                                <ItemsControl ItemsSource="{Binding Items}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border Height="44" Background="Transparent">
-                                                <Button Content="×"
-                                                        ToolTip="Remove this item from the workspace."
-                                                        AutomationProperties.Name="Remove launch item"
-                                                        Foreground="#B93645" Background="#FCEBED"
-                                                        BorderBrush="#F3C7CC" BorderThickness="1"
-                                                        Padding="0" Width="25" Height="25"
-                                                        FontSize="17" FontWeight="SemiBold"
-                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                        Click="RemoveItemButton_Click" />
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </ScrollViewer>
-                    <DataGrid x:Name="LaunchItemsGrid" Grid.Column="2" ItemsSource="{Binding Items}"
+                    <DataGrid x:Name="LaunchItemsGrid" ItemsSource="{Binding Items}"
                               ToolTip="These applications, websites, and files open in the order shown. Double-click a row to edit it."
                               AutoGenerateColumns="False" IsReadOnly="True"
                               CanUserAddRows="False" CanUserDeleteRows="False"
                               CanUserReorderColumns="False" CanUserSortColumns="False"
                               SelectionMode="Single" SelectionUnit="FullRow"
-                              HeadersVisibility="Column" RowHeaderWidth="0" ColumnHeaderHeight="38"
-                              GridLinesVisibility="None"
+                              HeadersVisibility="Column" ColumnHeaderHeight="38" GridLinesVisibility="None"
                               RowHeight="44" AlternatingRowBackground="#FAFBFD"
                               BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
                               Background="White" FontSize="12"
-                              MouseDoubleClick="LaunchItemsGrid_MouseDoubleClick"
-                              Loaded="LaunchItemsGrid_Loaded">
+                              MouseDoubleClick="LaunchItemsGrid_MouseDoubleClick">
                         <DataGrid.ColumnHeaderStyle>
                             <Style TargetType="DataGridColumnHeader">
                                 <Setter Property="Background" Value="#F7F8FB" />
@@ -294,8 +262,7 @@
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
-                    </Grid>
-                    <Border x:Name="EmptyItemsHint" Grid.Row="2" Margin="0,0,0,14"
+                    <Border x:Name="EmptyItemsHint"
                             Background="White" BorderBrush="{StaticResource LineBrush}"
                             BorderThickness="1" CornerRadius="8" Padding="22"
                             Visibility="Collapsed" IsHitTestVisible="False">
@@ -307,6 +274,7 @@
                                        Foreground="{StaticResource MutedBrush}" Margin="0,7,0,0" />
                         </StackPanel>
                     </Border>
+                    </Grid>
 
                     <Grid Grid.Row="3">
                         <Grid.RowDefinitions>

@@ -33,12 +33,29 @@
                     <ItemsControl x:Name="ApplicationItems">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <CheckBox Content="{Binding Item.Name}"
-                                          IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}"
+                                <CheckBox IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}"
                                           Checked="SelectionCheckBox_Changed"
                                           Unchecked="SelectionCheckBox_Changed"
                                           ToolTip="{Binding Item.Target}"
-                                          Padding="6" Margin="2" />
+                                          VerticalContentAlignment="Center" Padding="0" Margin="6,5">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                                        <Border x:Name="TypeBadge" CornerRadius="6"
+                                                Background="#EEF0FF" Margin="0,0,9,0">
+                                            <TextBlock x:Name="TypeBadgeText" Text="APP"
+                                                       Foreground="{StaticResource AccentBrush}"
+                                                       FontSize="9" FontWeight="Bold" Padding="6,4" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Item.Name}" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                    </StackPanel>
+                                </CheckBox>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding Item.Kind}" Value="File">
+                                        <Setter TargetName="TypeBadgeText" Property="Text" Value="FILE" />
+                                        <Setter TargetName="TypeBadge" Property="Background" Value="#FFF2E5" />
+                                        <Setter TargetName="TypeBadgeText" Property="Foreground" Value="#A45D16" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

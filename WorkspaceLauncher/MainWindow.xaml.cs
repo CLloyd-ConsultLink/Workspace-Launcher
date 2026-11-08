@@ -3,7 +3,6 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using WorkspaceLauncher.Models;
 using WorkspaceLauncher.Services;
 
@@ -21,8 +20,6 @@ public partial class MainWindow : Window
     private bool _launchHadItemErrors;
     private bool _closeHadWarnings;
     private bool _updateCheckStarted;
-    private bool _syncingItemScroll;
-    private ScrollViewer? _launchItemsScrollViewer;
     private int _desktopCount;
 
     public MainWindow()
@@ -149,56 +146,6 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
-    }
-
-    private void LaunchItemsGrid_Loaded(object sender, RoutedEventArgs e)
-    {
-        _launchItemsScrollViewer = FindVisualChild<ScrollViewer>(LaunchItemsGrid);
-        if (_launchItemsScrollViewer is not null)
-        {
-            _launchItemsScrollViewer.ScrollChanged += ItemsScrollViewer_ScrollChanged;
-        }
-    }
-
-    private void ItemsScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
-    {
-        if (_syncingItemScroll || sender is not ScrollViewer source)
-        {
-            return;
-        }
-
-        ScrollViewer? target = ReferenceEquals(source, RemoveItemsScrollViewer)
-            ? _launchItemsScrollViewer
-            : RemoveItemsScrollViewer;
-        if (target is null || Math.Abs(target.VerticalOffset - source.VerticalOffset) < 0.5)
-        {
-            return;
-        }
-
-        _syncingItemScroll = true;
-        target.ScrollToVerticalOffset(source.VerticalOffset);
-        _syncingItemScroll = false;
-    }
-
-    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
-    {
-        int childCount = VisualTreeHelper.GetChildrenCount(parent);
-        for (int index = 0; index < childCount; index++)
-        {
-            DependencyObject child = VisualTreeHelper.GetChild(parent, index);
-            if (child is T matchingChild)
-            {
-                return matchingChild;
-            }
-
-            T? descendant = FindVisualChild<T>(child);
-            if (descendant is not null)
-            {
-                return descendant;
-            }
-        }
-
-        return null;
     }
 
     private void WorkspaceList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -373,13 +320,12 @@ public partial class MainWindow : Window
 
     private void RemoveItemButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_selectedWorkspace is null || sender is not FrameworkElement { DataContext: LaunchItem item })
+        if (_selectedWorkspace is null || LaunchItemsGrid.SelectedItem is not LaunchItem item)
         {
             return;
         }
 
         _selectedWorkspace.Items.Remove(item);
-        LaunchItemsGrid.SelectedItem = null;
         AppendLog($"Removed launch item: {item.Name}");
     }
 
