@@ -216,7 +216,7 @@
                               BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
                               Background="White" FontSize="12"
                               MouseDoubleClick="LaunchItemsGrid_MouseDoubleClick"
-                              SelectionChanged="LaunchItemsGrid_SelectionChanged" KeyDown="LaunchItemsGrid_KeyDown">
+                              SelectionChanged="LaunchItemsGrid_SelectionChanged" PreviewKeyDown="LaunchItemsGrid_KeyDown">
                         <DataGrid.ColumnHeaderStyle>
                             <Style TargetType="DataGridColumnHeader">
                                 <Setter Property="Background" Value="#F7F8FB" />
