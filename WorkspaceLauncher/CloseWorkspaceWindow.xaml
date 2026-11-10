@@ -1,0 +1,80 @@
+<Window x:Class="WorkspaceLauncher.CloseWorkspaceWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Close workspace" Icon="pack://application:,,,/Assets/WorkspaceLauncher.ico" Width="520" Height="520"
+        MinWidth="440" MinHeight="360" WindowStartupLocation="CenterOwner"
+        Background="{StaticResource CanvasBrush}" FontFamily="Segoe UI">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="0,0,0,16">
+            <TextBlock Text="Close workspace items" FontSize="20" FontWeight="Bold"
+                       Foreground="{StaticResource InkBrush}" />
+            <TextBlock x:Name="WorkspaceDescription" FontSize="12"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,10">
+            <TextBlock Text="Choose which configured applications and files to close. All are selected by default. Websites are not included."
+                       TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource InkBrush}" />
+            <TextBlock Text="A file opened in a browser may close its entire browser window, including other tabs."
+                       TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource MutedBrush}" Margin="0,5,0,0" />
+        </StackPanel>
+
+        <Border Grid.Row="2" Background="White" BorderBrush="{StaticResource LineBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="10">
+            <Grid>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="ApplicationItems">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}"
+                                          Checked="SelectionCheckBox_Changed"
+                                          Unchecked="SelectionCheckBox_Changed"
+                                          ToolTip="{Binding Item.Target}"
+                                          VerticalContentAlignment="Center" Padding="0" Margin="6,5">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                                        <Border x:Name="TypeBadge" CornerRadius="6"
+                                                Background="#EEF0FF" Margin="0,0,9,0">
+                                            <TextBlock x:Name="TypeBadgeText" Text="APP"
+                                                       Foreground="{StaticResource AccentBrush}"
+                                                       FontSize="9" FontWeight="Bold" Padding="6,4" />
+                                        </Border>
+                                        <TextBlock Text="{Binding Item.Name}" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource InkBrush}" />
+                                    </StackPanel>
+                                </CheckBox>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding Item.Kind}" Value="File">
+                                        <Setter TargetName="TypeBadgeText" Property="Text" Value="FILE" />
+                                        <Setter TargetName="TypeBadge" Property="Background" Value="#FFF2E5" />
+                                        <Setter TargetName="TypeBadgeText" Property="Foreground" Value="#A45D16" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <TextBlock x:Name="NoApplicationsHint"
+                           Text="This workspace has no configured application or file entries. Website entries cannot be closed from Workspace Manager."
+                           TextWrapping="Wrap" TextAlignment="Center" FontSize="12"
+                           Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"
+                           Margin="18" Visibility="Collapsed" IsHitTestVisible="False" />
+            </Grid>
+        </Border>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Cancel" ToolTip="Cancel without closing any applications."
+                    MinWidth="88" Margin="0,0,8,0" IsCancel="True" />
+            <Button x:Name="CloseSelectedButton" Content="Close selected" MinWidth="122"
+                    Style="{StaticResource PrimaryButton}" IsDefault="True"
+                    Click="CloseSelectedButton_Click"
+                    ToolTip="Request a normal close for the selected application and file windows." />
+        </StackPanel>
+    </Grid>
+</Window>

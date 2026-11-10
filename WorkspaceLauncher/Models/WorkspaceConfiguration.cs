@@ -6,7 +6,9 @@ public sealed class WorkspaceConfiguration
 {
     public ObservableCollection<WorkspaceProfile> Workspaces { get; set; } = [];
 
-    public ObservableCollection<Guid> LaunchSequence { get; set; } = [];
+    public ObservableCollection<LaunchSequence> Sequences { get; set; } = [];
 
-    public int? EndDesktopIndex { get; set; }
+    public Guid? SelectedSequenceId { get; set; }
+
+    public Guid? DefaultSequenceId { get; set; }
 }

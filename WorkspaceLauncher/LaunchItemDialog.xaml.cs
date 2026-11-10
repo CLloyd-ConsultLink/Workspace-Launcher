@@ -20,14 +20,21 @@ public partial class LaunchItemDialog : Window
             SaveItemButton.Content = "Save launch item";
             SaveItemButton.ToolTip = "Validate and save these launch item settings.";
             ItemNameBox.Text = existingItem.Name;
+            ItemTypeComboBox.SelectedItem = ItemTypeComboBox.Items
+                .OfType<ComboBoxItem>()
+                .First(comboBoxItem => Equals(comboBoxItem.Tag?.ToString(), existingItem.Kind.ToString()));
             if (existingItem.Kind == LaunchItemKind.Website)
             {
-                ItemTypeComboBox.SelectedIndex = 1;
                 WebsiteAddressBox.Text = existingItem.Target;
+            }
+            else if (existingItem.Kind == LaunchItemKind.File)
+            {
+                FilePathBox.Text = existingItem.Target;
+                ProcessNameBox.Text = existingItem.ProcessName;
+                WindowTitleBox.Text = existingItem.WindowTitle;
             }
             else
             {
-                ItemTypeComboBox.SelectedIndex = 0;
                 ApplicationPathBox.Text = existingItem.Target;
                 ProcessNameBox.Text = existingItem.ProcessName;
                 WindowTitleBox.Text = existingItem.WindowTitle;
@@ -35,11 +42,14 @@ public partial class LaunchItemDialog : Window
         }
 
         UpdateTypeFields();
-        Loaded += (_, _) => (IsWebsiteSelected ? WebsiteAddressBox : ApplicationPathBox).Focus();
+        Loaded += (_, _) => GetActiveTargetBox().Focus();
     }
 
     private bool IsWebsiteSelected =>
         ItemTypeComboBox.SelectedItem is ComboBoxItem { Tag: "Website" };
+
+    private bool IsFileSelected =>
+        ItemTypeComboBox.SelectedItem is ComboBoxItem { Tag: "File" };
 
     private void ItemTypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -54,23 +64,30 @@ public partial class LaunchItemDialog : Window
         }
 
         bool isWebsite = IsWebsiteSelected;
-        ApplicationFieldsPanel.Visibility = isWebsite ? Visibility.Collapsed : Visibility.Visible;
+        bool isFile = IsFileSelected;
+        ApplicationFieldsPanel.Visibility = isWebsite || isFile ? Visibility.Collapsed : Visibility.Visible;
         WebsiteFieldsPanel.Visibility = isWebsite ? Visibility.Visible : Visibility.Collapsed;
+        FileFieldsPanel.Visibility = isFile ? Visibility.Visible : Visibility.Collapsed;
         ApplicationOptionsPanel.Visibility = isWebsite ? Visibility.Collapsed : Visibility.Visible;
         if (SaveItemButton is not null)
         {
             SaveItemButton.ToolTip = isWebsite
                 ? "Validate and add this website to the workspace."
-                : "Validate and add this application to the workspace.";
+                : isFile
+                    ? "Validate and add this file to the workspace."
+                    : "Validate and add this application to the workspace.";
         }
     }
 
     private void BrowseButton_Click(object sender, RoutedEventArgs e)
     {
+        bool isFile = IsFileSelected;
         var dialog = new OpenFileDialog
         {
-            Title = "Choose an application or shortcut",
-            Filter = "Applications and shortcuts (*.exe;*.lnk)|*.exe;*.lnk|All files (*.*)|*.*",
+            Title = isFile ? "Choose a file" : "Choose an application or shortcut",
+            Filter = isFile
+                ? "All files (*.*)|*.*"
+                : "Applications and shortcuts (*.exe;*.lnk)|*.exe;*.lnk|All files (*.*)|*.*",
             CheckFileExists = true,
             Multiselect = false
         };
@@ -79,8 +96,9 @@ public partial class LaunchItemDialog : Window
             return;
         }
 
-        string previousPath = ApplicationPathBox.Text;
-        ApplicationPathBox.Text = dialog.FileName;
+        TextBox targetBox = GetActiveTargetBox();
+        string previousPath = targetBox.Text;
+        targetBox.Text = dialog.FileName;
         if (string.IsNullOrWhiteSpace(ItemNameBox.Text) ||
             string.Equals(
                 Path.GetFileNameWithoutExtension(previousPath),
@@ -90,7 +108,8 @@ public partial class LaunchItemDialog : Window
             ItemNameBox.Text = Path.GetFileNameWithoutExtension(dialog.FileName);
         }
 
-        if (Path.GetExtension(dialog.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase) &&
+        if (!isFile &&
+            Path.GetExtension(dialog.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase) &&
             (string.IsNullOrWhiteSpace(ProcessNameBox.Text) ||
              string.Equals(
                  Path.GetFileNameWithoutExtension(previousPath),
@@ -128,6 +147,28 @@ public partial class LaunchItemDialog : Window
                 Kind = LaunchItemKind.Website,
                 Name = name,
                 Target = uri.AbsoluteUri
+            };
+            DialogResult = true;
+            return;
+        }
+
+        if (IsFileSelected)
+        {
+            string filePath = FilePathBox.Text.Trim();
+            if (!File.Exists(filePath))
+            {
+                ValidationMessage.Text = "Choose an existing file to open with its Windows default app.";
+                FilePathBox.Focus();
+                return;
+            }
+
+            Item = new LaunchItem
+            {
+                Kind = LaunchItemKind.File,
+                Name = name,
+                Target = filePath,
+                ProcessName = ProcessNameBox.Text.Trim(),
+                WindowTitle = WindowTitleBox.Text.Trim()
             };
             DialogResult = true;
             return;
@@ -172,4 +213,7 @@ public partial class LaunchItemDialog : Window
                target.Contains(Path.DirectorySeparatorChar) ||
                target.Contains(Path.AltDirectorySeparatorChar);
     }
+
+    private TextBox GetActiveTargetBox() =>
+        IsWebsiteSelected ? WebsiteAddressBox : IsFileSelected ? FilePathBox : ApplicationPathBox;
 }

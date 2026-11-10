@@ -5,8 +5,9 @@ namespace WorkspaceLauncher.Models;
 
 public enum LaunchItemKind
 {
-    Application,
-    Website
+    Application = 0,
+    Website = 1,
+    File = 2
 }
 
 public sealed class LaunchItem : INotifyPropertyChanged
@@ -15,8 +16,13 @@ public sealed class LaunchItem : INotifyPropertyChanged
     private string _target = "";
     private string _processName = "";
     private string _windowTitle = "";
+    private LaunchItemKind _kind;
 
-    public LaunchItemKind Kind { get; set; }
+    public LaunchItemKind Kind
+    {
+        get => _kind;
+        set => SetField(ref _kind, value);
+    }
 
     public string Name
     {

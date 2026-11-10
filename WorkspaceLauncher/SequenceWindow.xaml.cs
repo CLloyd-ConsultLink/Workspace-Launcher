@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows;
+using System.Windows.Controls;
 using WorkspaceLauncher.Models;
 
 namespace WorkspaceLauncher;
@@ -8,41 +9,52 @@ public partial class SequenceWindow : Window
 {
     private readonly ObservableCollection<WorkspaceProfile> _available = [];
     private readonly ObservableCollection<WorkspaceProfile> _sequence = [];
+    private readonly HashSet<string> _otherNames;
+    private readonly int _desktopCount;
 
     public IReadOnlyList<Guid> SequenceIds => _sequence.Select(profile => profile.Id).ToList();
 
-    public int? EndDesktopIndex => EndDesktopComboBox.SelectedIndex <= 0
-        ? null
-        : EndDesktopComboBox.SelectedIndex - 1;
+    public string SequenceName => SequenceNameBox.Text.Trim();
+
+    public int? EndDesktopIndex => (EndDesktopComboBox.SelectedItem as DesktopChoice)?.Index;
 
     public SequenceWindow(
         IEnumerable<WorkspaceProfile> workspaces,
         IEnumerable<Guid> sequenceIds,
         int desktopCount,
-        int? endDesktopIndex)
+        int? endDesktopIndex,
+        string name,
+        IEnumerable<string> otherNames)
     {
         InitializeComponent();
+        _desktopCount = desktopCount;
+        _otherNames = new HashSet<string>(otherNames.Select(value => value.Trim()), StringComparer.OrdinalIgnoreCase);
+        SequenceNameBox.Text = name;
 
-        EndDesktopComboBox.Items.Add("Last workspace's desktop");
+        EndDesktopComboBox.DisplayMemberPath = nameof(DesktopChoice.Label);
+        EndDesktopComboBox.Items.Add(new DesktopChoice(null, "Last workspace's desktop"));
         for (int desktopIndex = 0; desktopIndex < desktopCount; desktopIndex++)
         {
-            EndDesktopComboBox.Items.Add($"Desktop {desktopIndex + 1}");
+            EndDesktopComboBox.Items.Add(new DesktopChoice(desktopIndex, $"Desktop {desktopIndex + 1}"));
         }
-        EndDesktopComboBox.SelectedIndex = endDesktopIndex is int selectedDesktop &&
-                                           selectedDesktop >= 0 &&
-                                           selectedDesktop < desktopCount
-            ? selectedDesktop + 1
-            : 0;
+        if (endDesktopIndex is int unavailable && unavailable >= desktopCount)
+        {
+            EndDesktopComboBox.Items.Add(new DesktopChoice(unavailable, $"Desktop {unavailable + 1} (unavailable)"));
+        }
+        EndDesktopComboBox.SelectedItem = EndDesktopComboBox.Items.Cast<DesktopChoice>()
+            .First(choice => choice.Index == endDesktopIndex);
 
         WorkspaceProfile[] profiles = workspaces.ToArray();
-        var selectedIds = sequenceIds.ToHashSet();
+        Guid[] orderedIds = sequenceIds.ToArray();
+        var profilesById = profiles.ToDictionary(profile => profile.Id);
+        var selectedIds = orderedIds.ToHashSet();
+        foreach (Guid id in orderedIds)
+        {
+            _sequence.Add(profilesById[id]);
+        }
         foreach (WorkspaceProfile profile in profiles)
         {
-            if (selectedIds.Contains(profile.Id))
-            {
-                _sequence.Add(profile);
-            }
-            else
+            if (!selectedIds.Contains(profile.Id))
             {
                 _available.Add(profile);
             }
@@ -50,6 +62,7 @@ public partial class SequenceWindow : Window
 
         AvailableList.ItemsSource = _available;
         SequenceList.ItemsSource = _sequence;
+        UpdateButtons();
     }
 
     private void AddButton_Click(object sender, RoutedEventArgs e)
@@ -62,6 +75,7 @@ public partial class SequenceWindow : Window
         _available.Remove(profile);
         _sequence.Add(profile);
         SequenceList.SelectedItem = profile;
+        UpdateButtons();
     }
 
     private void RemoveButton_Click(object sender, RoutedEventArgs e)
@@ -74,6 +88,7 @@ public partial class SequenceWindow : Window
         _sequence.Remove(profile);
         _available.Add(profile);
         AvailableList.SelectedItem = profile;
+        UpdateButtons();
     }
 
     private void MoveUpButton_Click(object sender, RoutedEventArgs e) => MoveSelected(-1);
@@ -96,10 +111,41 @@ public partial class SequenceWindow : Window
 
         _sequence.Move(oldIndex, newIndex);
         SequenceList.SelectedItem = profile;
+        UpdateButtons();
+    }
+
+    private void Lists_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateButtons();
+
+    private void UpdateButtons()
+    {
+        if (AddButton is null || RemoveButton is null || MoveUpButton is null || MoveDownButton is null ||
+            AvailableList is null || SequenceList is null)
+        {
+            return;
+        }
+        int index = SequenceList.SelectedIndex;
+        AddButton.IsEnabled = AvailableList.SelectedItem is not null;
+        RemoveButton.IsEnabled = index >= 0;
+        MoveUpButton.IsEnabled = index > 0;
+        MoveDownButton.IsEnabled = index >= 0 && index < _sequence.Count - 1;
     }
 
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
+        if (string.IsNullOrWhiteSpace(SequenceName) || _otherNames.Contains(SequenceName))
+        {
+            MessageBox.Show(this, "Enter a unique name for this sequence.", "Check sequence name",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        if (EndDesktopIndex >= _desktopCount)
+        {
+            MessageBox.Show(this, "Choose an available end desktop.", "Desktop unavailable",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
         DialogResult = true;
     }
+
+    private sealed record DesktopChoice(int? Index, string Label);
 }

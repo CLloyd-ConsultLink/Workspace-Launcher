@@ -1,0 +1,43 @@
+<Window x:Class="WorkspaceLauncher.SequenceManagerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Manage sequences" Icon="pack://application:,,,/Assets/WorkspaceLauncher.ico"
+        Width="580" Height="460" MinWidth="480" MinHeight="360"
+        WindowStartupLocation="CenterOwner" Background="{StaticResource CanvasBrush}" FontFamily="Segoe UI">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,16">
+            <TextBlock Text="Manage launch sequences" FontSize="20" FontWeight="Bold"
+                       Foreground="{StaticResource InkBrush}" />
+            <TextBlock Text="Changes are staged here. Choose Save changes to keep them, or Cancel to discard them."
+                       TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" />
+        </StackPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ListBox x:Name="SequenceList" DisplayMemberPath="Name" Background="White"
+                     BorderBrush="{StaticResource LineBrush}" SelectionChanged="SequenceList_SelectionChanged"
+                     MouseDoubleClick="EditButton_Click" />
+            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                <Button Content="+ New" MinWidth="90" Click="NewButton_Click" Margin="0,0,0,8" />
+                <Button x:Name="EditButton" Content="Edit" Click="EditButton_Click" Margin="0,0,0,8" />
+                <Button x:Name="DefaultButton" Content="Set as default" Click="DefaultButton_Click" Margin="0,0,0,8" />
+                <Button x:Name="DeleteButton" Content="Delete" Foreground="#B54450" Click="DeleteButton_Click" />
+            </StackPanel>
+        </Grid>
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <TextBlock x:Name="DefaultLabel" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,230,0" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Cancel" MinWidth="88" Margin="0,0,8,0" IsCancel="True" />
+                <Button Content="Save changes" MinWidth="120" Style="{StaticResource PrimaryButton}"
+                        IsDefault="True" Click="SaveButton_Click" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

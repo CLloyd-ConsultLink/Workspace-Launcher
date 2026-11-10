@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using WorkspaceLauncher.Models;
 
 namespace WorkspaceLauncher.Services;
@@ -39,6 +40,84 @@ public sealed class WorkspaceLauncherService
         }
     }
 
+    public async Task CloseProfileAsync(
+        WorkspaceProfile profile,
+        IEnumerable<LaunchItem> selectedItems,
+        Action<string> report)
+    {
+        LaunchItem[] items = selectedItems
+            .Where(item => item.Kind is LaunchItemKind.Application or LaunchItemKind.File)
+            .ToArray();
+        if (items.Length == 0)
+        {
+            report("No application or file items were selected to close.");
+            return;
+        }
+
+        report($"Requesting closure of selected applications and files for {profile.Name} on Desktop {profile.DesktopIndex + 1}...");
+        foreach (LaunchItem item in items)
+        {
+            string processName = GetProcessName(item);
+            if (string.IsNullOrWhiteSpace(processName))
+            {
+                report($"WARNING: {item.Name} cannot be closed because its process name could not be determined.");
+                continue;
+            }
+
+            try
+            {
+                ProcessStartInfo startInfo = CreateWindowProbeStartInfo(
+                    processName,
+                    GetWindowTitleFilter(item),
+                    waitForWindow: false);
+                startInfo.ArgumentList.Add("-DesktopIndex");
+                startInfo.ArgumentList.Add(profile.DesktopIndex.ToString());
+                startInfo.ArgumentList.Add("-CloseWindows");
+
+                using var process = Process.Start(startInfo)
+                    ?? throw new InvalidOperationException($"Could not request closure of {item.Name}.");
+                Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+                Task<string> errorTask = process.StandardError.ReadToEndAsync();
+                await process.WaitForExitAsync();
+                string output = (await outputTask).Trim();
+                string error = (await errorTask).Trim();
+                if (process.ExitCode != 0)
+                {
+                    report($"ERROR: Could not request closure of {item.Name}. {(string.IsNullOrWhiteSpace(error) ? $"Helper exited with code {process.ExitCode}." : error)}");
+                    continue;
+                }
+
+                string[] counts = output.Split('|');
+                if (counts.Length != 4 ||
+                    !int.TryParse(counts[0], out int matched) ||
+                    !int.TryParse(counts[1], out int requested) ||
+                    !int.TryParse(counts[2], out int failed) ||
+                    !int.TryParse(counts[3], out int lookupFailures))
+                {
+                    throw new InvalidOperationException($"The window helper returned an invalid close result for {item.Name}: {output}");
+                }
+
+                if (matched == 0 && failed == 0 && lookupFailures == 0)
+                {
+                    report($"{item.Name}: no matching visible window was found on Desktop {profile.DesktopIndex + 1}.");
+                }
+                else if (failed > 0 || lookupFailures > 0)
+                {
+                    report($"WARNING: Requested closure of {requested} {GetWindowWord(requested)} for {item.Name}; {failed} matching window(s) could not receive a close request, and {lookupFailures} window(s) could not be checked.");
+                }
+                else
+                {
+                    report($"Requested closure of {requested} {GetWindowWord(requested)} for {item.Name} on Desktop {profile.DesktopIndex + 1}.");
+                }
+            }
+            catch (Exception exception) when (
+                exception is InvalidOperationException or IOException or System.ComponentModel.Win32Exception)
+            {
+                report($"ERROR: Could not request closure of {item.Name}. {exception.Message}");
+            }
+        }
+    }
+
     private static async Task LaunchItemsAsync(
         WorkspaceProfile profile,
         Guid targetDesktopId,
@@ -66,14 +145,16 @@ public sealed class WorkspaceLauncherService
                 continue;
             }
 
-            if (LooksLikeFilePath(item.Target) && !File.Exists(item.Target))
+            bool isFile = item.Kind == LaunchItemKind.File;
+            if ((isFile || LooksLikeFilePath(item.Target)) && !File.Exists(item.Target))
             {
                 report($"ERROR: {item.Name} was not found: {item.Target}");
                 continue;
             }
 
             string processName = GetProcessName(item);
-            if (processName.Length > 0 &&
+            string windowTitle = GetWindowTitleFilter(item);
+            if (!isFile && processName.Length > 0 &&
                 await HasVisibleWindowAsync(processName, item.WindowTitle, item.Name))
             {
                 report($"{item.Name} already has a visible window; skipped.");
@@ -86,13 +167,13 @@ public sealed class WorkspaceLauncherService
             {
                 rootProcessId = launchedProcess?.Id ?? 0;
             }
-            report($"Launched {item.Name}.");
+            report(isFile ? $"Opened file: {item.Name}." : $"Launched {item.Name}.");
 
             if (processName.Length > 0)
             {
                 await WaitForWindowAsync(
                     processName,
-                    item.WindowTitle,
+                    windowTitle,
                     item.Name,
                     targetDesktopId,
                     profile.DesktopIndex,
@@ -101,7 +182,9 @@ public sealed class WorkspaceLauncherService
             }
             else
             {
-                report($"WARNING: {item.Name} was launched, but its window cannot be tracked. Configure a process name to place late-opening windows on the assigned desktop.");
+                report(isFile
+                    ? $"WARNING: {item.Name} was opened with its default app, but Workspace Manager could not determine the app process to place its window on Desktop {profile.DesktopIndex + 1}. Set Process name in the item settings to enable tracking."
+                    : $"WARNING: {item.Name} was launched, but its window cannot be tracked. Configure a process name to place late-opening windows on the assigned desktop.");
             }
         }
     }
@@ -276,6 +359,11 @@ public sealed class WorkspaceLauncherService
             return Path.GetFileNameWithoutExtension(item.ProcessName.Trim());
         }
 
+        if (item.Kind == LaunchItemKind.File)
+        {
+            return TryGetAssociatedProcessName(item.Target);
+        }
+
         string extension = Path.GetExtension(item.Target);
         if (extension.Equals(".exe", StringComparison.OrdinalIgnoreCase))
         {
@@ -289,6 +377,55 @@ public sealed class WorkspaceLauncherService
 
         return TryGetShortcutProcessName(item.Target);
     }
+
+    private static string GetWindowTitleFilter(LaunchItem item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.WindowTitle))
+        {
+            return item.WindowTitle.Trim();
+        }
+
+        return item.Kind == LaunchItemKind.File
+            ? Path.GetFileNameWithoutExtension(item.Target)
+            : "";
+    }
+
+    private static string GetWindowWord(int count) => count == 1 ? "window" : "windows";
+
+    private static string TryGetAssociatedProcessName(string filePath)
+    {
+        string extension = Path.GetExtension(filePath);
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            return "";
+        }
+
+        uint bufferLength = 0;
+        int result = AssocQueryString(0, 2, extension, null, null, ref bufferLength);
+        if (bufferLength == 0 || bufferLength > 32768)
+        {
+            return "";
+        }
+
+        var executablePath = new StringBuilder((int)bufferLength);
+        result = AssocQueryString(0, 2, extension, null, executablePath, ref bufferLength);
+        if (result < 0)
+        {
+            return "";
+        }
+
+        string path = executablePath.ToString().Trim().Trim('"');
+        return string.IsNullOrWhiteSpace(path) ? "" : Path.GetFileNameWithoutExtension(path);
+    }
+
+    [DllImport("Shlwapi.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
+    private static extern int AssocQueryString(
+        uint flags,
+        uint associationString,
+        string association,
+        string? extra,
+        StringBuilder? output,
+        ref uint outputLength);
 
     private static string TryGetShortcutProcessName(string shortcutPath)
     {

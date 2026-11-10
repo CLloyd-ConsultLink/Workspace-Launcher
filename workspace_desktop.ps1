@@ -3,6 +3,7 @@ param(
     [switch]$GetDesktopCount,
     [string]$ProcessName,
     [string]$WindowTitle,
+    [switch]$CloseWindows,
     [int]$RootProcessId = 0,
     [Guid]$MoveToDesktopId = [Guid]::Empty,
     [switch]$CaptureDesktopId,
@@ -400,6 +401,27 @@ public static class VirtualDesktopWindowOperations
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindow(IntPtr window);
 
+    private delegate bool EnumWindowsCallback(IntPtr hwnd, IntPtr data);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr data);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr hwnd, System.Text.StringBuilder text, int count);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(IntPtr hwnd);
+
+    private const uint WmClose = 0x0010;
+
     public static void MoveWindowToDesktop(long windowHandle, Guid targetDesktopId)
     {
         IntPtr window = new IntPtr(windowHandle);
@@ -434,6 +456,188 @@ public static class VirtualDesktopWindowOperations
         finally
         {
             Marshal.FinalReleaseComObject(publicManager);
+        }
+    }
+
+    public static string RequestCloseOnDesktop(string processName, string titlePart, int desktopIndex)
+    {
+        Guid targetDesktopId = ResolveDesktopId(desktopIndex);
+        var matchingWindows = new System.Collections.Generic.List<IntPtr>();
+        int processLookupFailures = 0;
+        EnumWindows((hwnd, data) =>
+        {
+            if (!IsWindowVisible(hwnd))
+            {
+                return true;
+            }
+
+            var title = new System.Text.StringBuilder(512);
+            GetWindowText(hwnd, title, title.Capacity);
+            if (!String.IsNullOrEmpty(titlePart) &&
+                (title.Length == 0 ||
+                 title.ToString().IndexOf(titlePart, StringComparison.OrdinalIgnoreCase) < 0))
+            {
+                return true;
+            }
+
+            uint processId;
+            GetWindowThreadProcessId(hwnd, out processId);
+            try
+            {
+                using (var process = System.Diagnostics.Process.GetProcessById((int)processId))
+                {
+                    if (String.Equals(process.ProcessName, processName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        matchingWindows.Add(hwnd);
+                    }
+                }
+            }
+            catch (ArgumentException)
+            {
+                processLookupFailures++;
+            }
+            catch (InvalidOperationException)
+            {
+                processLookupFailures++;
+            }
+            catch (Win32Exception)
+            {
+                processLookupFailures++;
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        int matched = 0;
+        int requested = 0;
+        int failed = 0;
+        IVirtualDesktopManager publicManager = (IVirtualDesktopManager)new VirtualDesktopManagerClass();
+        try
+        {
+            foreach (IntPtr hwnd in matchingWindows)
+            {
+                try
+                {
+                    Guid windowDesktopId;
+                    Marshal.ThrowExceptionForHR(publicManager.GetWindowDesktopId(hwnd, out windowDesktopId));
+                    if (windowDesktopId != targetDesktopId)
+                    {
+                        continue;
+                    }
+
+                    matched++;
+                    if (PostMessage(hwnd, WmClose, IntPtr.Zero, IntPtr.Zero))
+                    {
+                        requested++;
+                    }
+                    else
+                    {
+                        failed++;
+                    }
+                }
+                catch (COMException)
+                {
+                    failed++;
+                }
+            }
+        }
+        finally
+        {
+            Marshal.FinalReleaseComObject(publicManager);
+        }
+
+        return matched + "|" + requested + "|" + failed + "|" + processLookupFailures;
+    }
+
+    private static Guid ResolveDesktopId(int desktopIndex)
+    {
+        if (desktopIndex < 0)
+        {
+            throw new ArgumentOutOfRangeException("desktopIndex");
+        }
+
+        IntPtr serviceProvider = IntPtr.Zero;
+        IntPtr desktopManager = IntPtr.Zero;
+        IntPtr desktops = IntPtr.Zero;
+        try
+        {
+            Guid classId = ImmersiveShellClassId;
+            Guid providerId = ServiceProviderInterfaceId;
+            Marshal.ThrowExceptionForHR(CoCreateInstance(ref classId, IntPtr.Zero, 0x17, ref providerId, out serviceProvider));
+
+            QueryServiceDelegate queryService = Marshal.GetDelegateForFunctionPointer<QueryServiceDelegate>(
+                Marshal.ReadIntPtr(Marshal.ReadIntPtr(serviceProvider), 3 * IntPtr.Size));
+            desktopManager = QueryVirtualDesktopManager(queryService, serviceProvider);
+
+            int build = Environment.OSVersion.Version.Build;
+            int getDesktopsIndex = build >= 22000 && build < 22621 ? 8 : 7;
+            IntPtr getDesktopsMethod = Marshal.ReadIntPtr(Marshal.ReadIntPtr(desktopManager), getDesktopsIndex * IntPtr.Size);
+            int result;
+            if (build >= 22000 && build < 22621)
+            {
+                result = Marshal.GetDelegateForFunctionPointer<GetDesktopArrayWithWindowDelegate>(getDesktopsMethod)(
+                    desktopManager,
+                    IntPtr.Zero,
+                    out desktops);
+            }
+            else
+            {
+                result = Marshal.GetDelegateForFunctionPointer<GetDesktopArrayDelegate>(getDesktopsMethod)(
+                    desktopManager,
+                    out desktops);
+            }
+            Marshal.ThrowExceptionForHR(result);
+            if (desktops == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("Windows returned no virtual desktop list.");
+            }
+
+            IntPtr getCountMethod = Marshal.ReadIntPtr(Marshal.ReadIntPtr(desktops), 3 * IntPtr.Size);
+            int desktopCount;
+            Marshal.ThrowExceptionForHR(Marshal.GetDelegateForFunctionPointer<GetArrayCountDelegate>(getCountMethod)(
+                desktops,
+                out desktopCount));
+            if (desktopIndex >= desktopCount)
+            {
+                throw new InvalidOperationException("The assigned virtual desktop no longer exists.");
+            }
+
+            Guid desktopInterfaceId = GetDesktopInterfaceId(build);
+            IntPtr getAtMethod = Marshal.ReadIntPtr(Marshal.ReadIntPtr(desktops), 4 * IntPtr.Size);
+            Guid requestedInterfaceId = desktopInterfaceId;
+            IntPtr desktop = IntPtr.Zero;
+            try
+            {
+                Marshal.ThrowExceptionForHR(Marshal.GetDelegateForFunctionPointer<GetArrayItemDelegate>(getAtMethod)(
+                    desktops,
+                    desktopIndex,
+                    ref requestedInterfaceId,
+                    out desktop));
+                if (desktop == IntPtr.Zero)
+                {
+                    throw new InvalidOperationException("Windows returned no desktop for the assigned index.");
+                }
+
+                IntPtr getIdMethod = Marshal.ReadIntPtr(Marshal.ReadIntPtr(desktop), 4 * IntPtr.Size);
+                Guid desktopId;
+                Marshal.ThrowExceptionForHR(Marshal.GetDelegateForFunctionPointer<GetDesktopIdDelegate>(getIdMethod)(
+                    desktop,
+                    out desktopId));
+                return desktopId;
+            }
+            finally
+            {
+                if (desktop != IntPtr.Zero)
+                {
+                    Marshal.Release(desktop);
+                }
+            }
+        }
+        finally
+        {
+            if (desktops != IntPtr.Zero) Marshal.Release(desktops);
+            if (desktopManager != IntPtr.Zero) Marshal.Release(desktopManager);
+            if (serviceProvider != IntPtr.Zero) Marshal.Release(serviceProvider);
         }
     }
 
@@ -628,6 +832,21 @@ public static class VirtualDesktopWindowOperations
     }
 }
 '@
+    if ($CloseWindows) {
+        try {
+            Add-Type -TypeDefinition $windowDesktopOperationsSource
+            $result = [VirtualDesktopWindowOperations]::RequestCloseOnDesktop(
+                $ProcessName,
+                $WindowTitle,
+                $DesktopIndex)
+            [Console]::Out.WriteLine($result)
+            exit 0
+        } catch {
+            [Console]::Error.WriteLine("Could not request window closure for $ProcessName on Desktop $($DesktopIndex + 1): $_")
+            exit 3
+        }
+    }
+
     Add-Type -TypeDefinition $windowProbeSource
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     do {
