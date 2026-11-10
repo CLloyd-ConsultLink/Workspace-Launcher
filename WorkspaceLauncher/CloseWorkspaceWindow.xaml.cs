@@ -30,6 +30,11 @@ public partial class CloseWorkspaceWindow : Window
 
     private void SelectionCheckBox_Changed(object sender, RoutedEventArgs e)
     {
+        if (sender is System.Windows.Controls.CheckBox checkBox &&
+            checkBox.DataContext is CloseWorkspaceItem item)
+        {
+            item.IsChecked = checkBox.IsChecked == true;
+        }
         UpdateCloseButton();
     }
 
