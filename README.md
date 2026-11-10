@@ -1,6 +1,6 @@
 # Workspace Manager
 
-Workspace Manager is a Windows 10/11 x64 desktop app for defining reusable groups of applications, websites, and files, then opening them across Windows virtual desktops. It supports configurable workspace profiles and a separate, ordered launch sequence.
+Workspace Manager is a Windows 10/11 x64 desktop app for defining reusable groups of applications, websites, and files, then opening them across Windows virtual desktops. It supports configurable workspace profiles and multiple named, ordered launch sequences.
 
 ## Install the app
 
@@ -22,15 +22,23 @@ On first run, the app starts with no workspaces, launch items, or websites. Add 
 
 - Choose **+ New** to create a workspace; edit its name and choose a virtual desktop.
 - Choose **+ Add launch item** to open one dialog and select **Application or shortcut**, **Website**, or **File**. Use **Browse...** to select an `.exe` or `.lnk` for an application, or any existing file for a file item. File items open with the default Windows app for that file type, including PDFs, Office documents, and other registered file types.
-- The launch-item table is read-only. Double-click any row to edit it in the same launch-item dialog. For applications that start their actual window in a child process, set the process name to that child app (for example, `javaw` for a Java application). For files, Workspace Manager attempts to determine the default app process from the file association and uses the file name to locate the document window. If detection is not correct, set **Process name** and **Window title contains** in the item settings.
-- Select an item and use **Move up** or **Move down** to change its launch order. Use **Remove** to delete the selected item, then choose **Save changes**.
+- Select an item and choose **Edit**, double-click it, or press Enter to edit it. For applications that start their actual window in a child process, set the process name to that child app (for example, `javaw` for a Java application). For files, Workspace Manager attempts to determine the default app process from the file association and uses the file name to locate the document window. If detection is not correct, set **Process name** and **Window title contains** in the item settings.
+- Select an item and use **Move up** or **Move down** to change its launch order. Use **Remove** to delete the selected item.
 - Choose **Delete workspace** to remove the selected profile. The workspace list may be left empty.
 
 Hover over controls for brief tips. When there are no workspaces or the selected workspace has no launch items, the app shows a getting-started hint.
 
+Valid workspace edits save automatically. The footer shows whether changes are saved; if a name is invalid or saving fails, correct the problem or choose **Retry save**. Unsaved changes must be saved before switching workspaces, launching, or closing the app. **Workspace activity** expands to show the detailed log; errors and warnings expand it automatically.
+
 ### Configure and launch a sequence
 
-Choose **Configure sequence** to move profiles into or out of the sequence, arrange their order, and choose the desktop to leave active when the sequence finishes. The sequence can contain any subset of your workspaces. Choose **Save sequence** to save it, then **Launch sequence** to run each selected workspace in order. Each workspace switches to its assigned desktop before opening its items. By default the app remains on the last workspace's desktop; select a specific desktop in the sequence settings to end there instead.
+Choose **Manage sequences** to create, edit, rename, or delete named sequences. For each sequence, choose any subset of your workspaces, arrange their order, and select the desktop to leave active when it finishes. **Apply** stages the edit in the manager; choose **Save changes** in the manager to persist all staged changes, or **Cancel** to discard them. Select a sequence from the labeled dropdown, then choose **Launch sequence**. Empty sequences cannot be launched. A workspace can belong to multiple sequences; deleting a workspace removes it from all sequences without deleting the sequences.
+
+In the sequence manager, select a sequence and choose **Set as default** to select it automatically when the app starts. Use **Clear default** to return to opening the last selected sequence. Deleting the default clears it. Existing configurations without a default use their previously selected sequence as the initial default.
+
+Each workspace switches to its assigned desktop before opening its items. By default the app remains on the last workspace's desktop; select a specific desktop in a sequence's settings to end there instead. If a sequence's assigned desktop is no longer available, update its settings before launching.
+
+Existing single-sequence settings migrate to a named **Default sequence**, retaining the saved workspace order and end desktop. Earlier app versions do not support the new multi-sequence configuration.
 
 You can also choose **Launch workspace** in the editor to run just the selected workspace.
 
@@ -74,7 +82,7 @@ Share that single setup file with users. Intermediate publish files are stored i
 
 ### Publish an update
 
-The app version in `WorkspaceLauncher\WorkspaceLauncher.csproj` is the source of truth for both the app and installer. Increase it using `major.minor.patch` format, build the installer, and publish a stable GitHub Release in `CLloyd-ConsultLink/Workspace-Launcher` with a matching `v`-prefixed tag (for example, version `1.4.0` uses tag `v1.4.0`). Attach the generated `WorkspaceLauncher-Setup-win-x64.exe` file. Keep this asset filename so existing installations can download updates. The app checks the latest stable release only; drafts and prereleases are not offered.
+The app version in `WorkspaceLauncher\WorkspaceLauncher.csproj` is the source of truth for both the app and installer. Increase it using `major.minor.patch` format, build the installer, and publish a stable GitHub Release in `CLloyd-ConsultLink/Workspace-Launcher` with a matching `v`-prefixed tag (for example, version `2.0.0` uses tag `v2.0.0`). Attach the generated `WorkspaceLauncher-Setup-win-x64.exe` file. Keep this asset filename so existing installations can download updates. The app checks the latest stable release only; drafts and prereleases are not offered.
 
 ## Configuration and legacy launcher
 

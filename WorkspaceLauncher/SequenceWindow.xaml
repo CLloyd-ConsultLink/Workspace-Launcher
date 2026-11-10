@@ -1,7 +1,7 @@
 <Window x:Class="WorkspaceLauncher.SequenceWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Configure launch sequence" Width="760" Height="520"
+        Title="Configure launch sequence" Icon="pack://application:,,,/Assets/WorkspaceLauncher.ico" Width="760" Height="520"
         MinWidth="650" MinHeight="430" WindowStartupLocation="CenterOwner"
         Background="{StaticResource CanvasBrush}" FontFamily="Segoe UI">
     <Grid Margin="22">
@@ -16,6 +16,9 @@
                        Foreground="{StaticResource InkBrush}" />
             <TextBlock Text="Choose which workspaces to launch and arrange their order."
                        FontSize="12" Foreground="{StaticResource MutedBrush}" Margin="0,4,0,0" />
+            <TextBlock Text="SEQUENCE NAME" FontSize="10" FontWeight="Bold"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,12,0,5" />
+            <TextBox x:Name="SequenceNameBox" />
         </StackPanel>
 
         <Grid Grid.Row="1">
@@ -25,32 +28,62 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <StackPanel>
-                <TextBlock Text="AVAILABLE WORKSPACES" FontSize="10" FontWeight="Bold"
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="AVAILABLE WORKSPACES" FontSize="10" FontWeight="Bold"
                            Foreground="{StaticResource MutedBrush}" Margin="0,0,0,8" />
+                <Grid>
                 <ListBox x:Name="AvailableList" DisplayMemberPath="Name"
                          ToolTip="Workspaces available to add to the launch sequence."
                          BorderBrush="{StaticResource LineBrush}" Background="White"
-                         SelectionMode="Single" />
-            </StackPanel>
+                         SelectionMode="Single" SelectionChanged="Lists_SelectionChanged" />
+                <TextBlock Text="No workspaces available." TextWrapping="Wrap" HorizontalAlignment="Center"
+                           VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{StaticResource MutedBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Items.Count, ElementName=AvailableList}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                </Grid>
+            </DockPanel>
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0">
-                <Button Content="Add →" ToolTip="Add the selected available workspace to the sequence."
+                <Button x:Name="AddButton" Content="Add →" ToolTip="Add the selected available workspace to the sequence."
                         Padding="12,8" Margin="0,0,0,8" Click="AddButton_Click" />
-                <Button Content="← Remove" ToolTip="Remove the selected workspace from the sequence."
+                <Button x:Name="RemoveButton" Content="← Remove" ToolTip="Remove the selected workspace from the sequence."
                         Padding="12,8" Click="RemoveButton_Click" />
             </StackPanel>
-            <StackPanel Grid.Column="2">
-                <TextBlock Text="LAUNCH ORDER" FontSize="10" FontWeight="Bold"
+            <DockPanel Grid.Column="2">
+                <TextBlock DockPanel.Dock="Top" Text="LAUNCH ORDER" FontSize="10" FontWeight="Bold"
                            Foreground="{StaticResource MutedBrush}" Margin="0,0,0,8" />
+                <Grid>
                 <ListBox x:Name="SequenceList" DisplayMemberPath="Name"
                          ToolTip="These workspaces launch in the order shown."
                          BorderBrush="{StaticResource LineBrush}" Background="White"
-                         SelectionMode="Single" />
-            </StackPanel>
+                         SelectionMode="Single" SelectionChanged="Lists_SelectionChanged" />
+                <TextBlock Text="Add workspaces to the launch order." TextWrapping="Wrap" HorizontalAlignment="Center"
+                           VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{StaticResource MutedBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Items.Count, ElementName=SequenceList}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                </Grid>
+            </DockPanel>
             <StackPanel Grid.Column="3" VerticalAlignment="Center" Margin="10,0,0,0">
-                <Button Content="Move up" ToolTip="Launch this workspace earlier in the sequence."
+                <Button x:Name="MoveUpButton" Content="Move up" ToolTip="Launch this workspace earlier in the sequence."
                         Padding="11,8" Margin="0,0,0,8" Click="MoveUpButton_Click" />
-                <Button Content="Move down" ToolTip="Launch this workspace later in the sequence."
+                <Button x:Name="MoveDownButton" Content="Move down" ToolTip="Launch this workspace later in the sequence."
                         Padding="11,8" Click="MoveDownButton_Click" />
             </StackPanel>
         </Grid>
@@ -72,8 +105,8 @@
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Cancel" ToolTip="Discard sequence edits and close this window."
                     MinWidth="88" Margin="0,0,8,0" IsCancel="True" />
-            <Button Content="Save sequence" MinWidth="130" Style="{StaticResource PrimaryButton}"
-                    ToolTip="Save the selected workspaces and their launch order."
+            <Button Content="Apply" MinWidth="130" Style="{StaticResource PrimaryButton}"
+                    ToolTip="Apply edits to the manager. Choose Save changes there to keep them."
                     IsDefault="True" Click="SaveButton_Click" />
         </StackPanel>
     </Grid>

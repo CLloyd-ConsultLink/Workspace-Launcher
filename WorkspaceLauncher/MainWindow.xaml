@@ -7,12 +7,12 @@
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource CanvasBrush}"
         FontFamily="Segoe UI"
-        Loaded="MainWindow_Loaded">
+        Loaded="MainWindow_Loaded" Closing="MainWindow_Closing">
     <Grid Margin="28">
         <Grid.RowDefinitions>
             <RowDefinition Height="66" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="28" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0" Margin="2,0,2,16">
@@ -33,13 +33,19 @@
                 </StackPanel>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <Button x:Name="ConfigureSequenceButton" Content="Configure sequence"
-                        ToolTip="Choose which workspaces to launch and arrange their order."
-                        Padding="14,11" Margin="0,0,8,0"
+                <Button x:Name="ConfigureSequenceButton" Content="Manage sequences"
+                        ToolTip="Create and configure named launch sequences."
+                        Padding="12,11" Margin="0,0,8,0"
                         Click="ConfigureSequenceButton_Click" VerticalAlignment="Center" />
+                <StackPanel Margin="0,0,8,0" VerticalAlignment="Center">
+                    <TextBlock Text="LAUNCH SEQUENCE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" />
+                    <ComboBox x:Name="SequenceSelector" Width="155" DisplayMemberPath="Name"
+                              ToolTip="Choose the sequence to launch. Use Manage sequences to create one."
+                              SelectionChanged="SequenceSelector_SelectionChanged" />
+                </StackPanel>
                 <Button x:Name="LaunchSequenceButton" Content="Launch sequence"
-                    ToolTip="Launch each workspace in your saved sequence, in order."
-                    Style="{StaticResource PrimaryButton}" Padding="18,11"
+                    ToolTip="Launch the selected sequence. Empty sequences cannot be launched."
+                    Style="{StaticResource PrimaryButton}" Padding="12,11"
                     Click="LaunchSequenceButton_Click" VerticalAlignment="Center" />
             </StackPanel>
         </Grid>
@@ -88,9 +94,13 @@
                                                 <Trigger Property="IsSelected" Value="True">
                                                     <Setter TargetName="ItemBorder" Property="Background" Value="#EEF0FF" />
                                                 </Trigger>
-                                                <Trigger Property="IsMouseOver" Value="True">
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsMouseOver" Value="True" />
+                                                        <Condition Property="IsSelected" Value="False" />
+                                                    </MultiTrigger.Conditions>
                                                     <Setter TargetName="ItemBorder" Property="Background" Value="#F5F6FA" />
-                                                </Trigger>
+                                                </MultiTrigger>
                                                 <Trigger Property="IsSelected" Value="True">
                                                     <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
                                                 </Trigger>
@@ -139,7 +149,7 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
-                        <RowDefinition Height="150" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <Grid Grid.Row="0" Margin="0,0,0,20">
@@ -177,24 +187,22 @@
                         </StackPanel>
                     </Grid>
 
-                    <Grid Grid.Row="1" Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                    <WrapPanel Grid.Row="1" Margin="0,0,0,8">
                         <TextBlock Text="LAUNCH ITEMS" FontSize="11" FontWeight="Bold"
                                    Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"
                                    Margin="0,0,14,0" />
-                        <Button Grid.Column="1" Content="+ Add launch item"
+                        <Button Content="+ Add launch item"
                                 ToolTip="Choose whether to add an application, website, or file, then enter its details."
                                 Padding="11,7"
                                 Click="AddLaunchItemButton_Click" />
-                        <Button Grid.Column="2" Content="Remove"
+                        <Button x:Name="EditItemButton" Content="Edit" Padding="11,7" Margin="8,0,0,4" Click="EditItemButton_Click" />
+                        <Button x:Name="RemoveItemButton" Content="Remove"
                                 ToolTip="Remove the selected application, website, or file from this workspace."
-                                Padding="11,7" Margin="8,0,0,0"
+                                Padding="11,7" Margin="8,0,0,4"
                                 Click="RemoveItemButton_Click" />
-                    </Grid>
+                        <Button x:Name="MoveUpButton" Content="Move up" Padding="11,7" Margin="8,0,0,4" Click="MoveItemUpButton_Click" />
+                        <Button x:Name="MoveDownButton" Content="Move down" Padding="11,7" Margin="8,0,0,4" Click="MoveItemDownButton_Click" />
+                    </WrapPanel>
 
                     <Grid Grid.Row="2" Margin="0,0,0,14">
                     <DataGrid x:Name="LaunchItemsGrid" ItemsSource="{Binding Items}"
@@ -207,7 +215,8 @@
                               RowHeight="44" AlternatingRowBackground="#FAFBFD"
                               BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
                               Background="White" FontSize="12"
-                              MouseDoubleClick="LaunchItemsGrid_MouseDoubleClick">
+                              MouseDoubleClick="LaunchItemsGrid_MouseDoubleClick"
+                              SelectionChanged="LaunchItemsGrid_SelectionChanged" KeyDown="LaunchItemsGrid_KeyDown">
                         <DataGrid.ColumnHeaderStyle>
                             <Style TargetType="DataGridColumnHeader">
                                 <Setter Property="Background" Value="#F7F8FB" />
@@ -269,51 +278,36 @@
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="This workspace is empty" FontSize="16" FontWeight="SemiBold"
                                        Foreground="{StaticResource InkBrush}" />
-                            <TextBlock Text="Choose + Add launch item to add an application, shortcut, website, or file. Use Move up and Move down to set the launch order, then save your changes."
+                            <TextBlock Text="Choose + Add launch item to add an application, shortcut, website, or file."
                                        TextWrapping="Wrap" FontSize="12" LineHeight="19"
                                        Foreground="{StaticResource MutedBrush}" Margin="0,7,0,0" />
                         </StackPanel>
                     </Border>
                     </Grid>
 
-                    <Grid Grid.Row="3">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-                        <Grid Margin="0,0,0,8">
-                            <StackPanel>
-                                <TextBlock Text="WORKSPACE ACTIVITY" FontSize="10" FontWeight="Bold"
-                                           Foreground="{StaticResource MutedBrush}" />
-                                <TextBlock x:Name="StatusText" Text="Ready" FontSize="11"
-                                           Foreground="{StaticResource InkBrush}" Margin="0,3,0,0" />
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button Content="Move up" ToolTip="Move the selected launch item earlier in this workspace."
-                                        Padding="10,6" Margin="0,0,6,0"
-                                        Click="MoveItemUpButton_Click" />
-                                <Button Content="Move down" ToolTip="Move the selected launch item later in this workspace."
-                                        Padding="10,6"
-                                        Click="MoveItemDownButton_Click" />
-                                <Button x:Name="SaveButton" Content="Save changes" Style="{StaticResource PrimaryButton}"
-                                        ToolTip="Save workspace names, desktop assignments, launch items, and ordering."
-                                        Padding="14,7" Margin="12,0,0,0" Click="SaveButton_Click" />
-                            </StackPanel>
-                        </Grid>
-                        <TextBox x:Name="ActivityLog" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True"
+                    <StackPanel Grid.Row="3">
+                        <TextBlock x:Name="StatusText" Text="Ready" FontSize="11" Foreground="{StaticResource InkBrush}" TextWrapping="Wrap" Margin="0,3,0,3" />
+                        <Expander x:Name="ActivityExpander" Header="Workspace activity">
+                        <TextBox x:Name="ActivityLog" Height="110" IsReadOnly="True" AcceptsReturn="True"
                                  ToolTip="Workspace launch and close results, skipped apps, and errors appear here."
                                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                                  FontFamily="Consolas" FontSize="11" Padding="10"
                                  Background="#FAFBFD" />
-                    </Grid>
+                        </Expander>
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>
 
-        <Grid Grid.Row="2" Margin="2,0,0,0">
-            <TextBlock Text="Changes are stored locally in your Windows app-data folder."
-                       FontSize="11" Foreground="{StaticResource MutedBrush}"
-                       VerticalAlignment="Bottom" />
+        <Grid Grid.Row="2" Margin="2,6,0,0">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="SaveStatusText" Text="Changes saved." FontSize="11" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" />
+                    <Button x:Name="SaveButton" Content="Retry save" Margin="8,0,0,0" Padding="5,2" Visibility="Collapsed" Click="SaveButton_Click" />
+                </StackPanel>
+                <TextBlock x:Name="SequenceStateText" Text="Changes are stored locally in your Windows app-data folder."
+                           FontSize="11" Foreground="{StaticResource MutedBrush}" />
+            </StackPanel>
             <TextBlock Text="{Binding Source={x:Static Application.Current}, Path=Version}"
                        FontSize="11" Foreground="{StaticResource MutedBrush}"
                        HorizontalAlignment="Right" VerticalAlignment="Bottom"

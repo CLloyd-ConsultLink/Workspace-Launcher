@@ -1,8 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Threading;
 using WorkspaceLauncher.Models;
 using WorkspaceLauncher.Services;
 
@@ -20,11 +23,17 @@ public partial class MainWindow : Window
     private bool _launchHadItemErrors;
     private bool _closeHadWarnings;
     private bool _updateCheckStarted;
+    private bool _updatingSequenceSelector;
     private int _desktopCount;
+    private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(800) };
+    private bool _ready;
+    private bool _dirty;
+    private bool _restoringWorkspaceSelection;
 
     public MainWindow()
     {
         InitializeComponent();
+        _saveTimer.Tick += SaveTimer_Tick;
 
         try
         {
@@ -35,7 +44,12 @@ public partial class MainWindow : Window
             }
 
             _configuration = _store.LoadOrCreate();
+            if (_configuration.DefaultSequenceId is Guid defaultId)
+            {
+                _configuration.SelectedSequenceId = defaultId;
+            }
             _profiles = _configuration.Workspaces;
+            RefreshSequenceSelector();
             foreach (WorkspaceProfile profile in _profiles)
             {
                 if (profile.DesktopIndex >= _desktopCount)
@@ -54,11 +68,12 @@ public partial class MainWindow : Window
             UpdateEmptyState();
 
             _store.Save(_configuration);
+            _ready = true;
             AppendLog($"Detected {_desktopCount} virtual desktop(s).");
             AppendLog($"Configuration: {_store.FilePath}");
             AppendLog(_profiles.Count == 0
                 ? "Choose + New to create your first workspace."
-                : "Select a workspace, edit its launch items, then save or launch.");
+                : "Select a workspace to edit or launch it. Changes save automatically.");
         }
         catch (Exception exception)
         {
@@ -118,6 +133,11 @@ public partial class MainWindow : Window
         SetBusy(true);
         try
         {
+            if (_dirty && !SaveProfiles(showSuccess: false))
+            {
+                SetBusy(false);
+                return;
+            }
             StatusText.Text = "Downloading and verifying the update...";
             AppendLog("Downloading the update installer...");
             string installerPath = await _updateService.DownloadInstallerAsync(update);
@@ -150,27 +170,40 @@ public partial class MainWindow : Window
 
     private void WorkspaceList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
+        if (_restoringWorkspaceSelection)
+        {
+            return;
+        }
+        if (_ready && _dirty && !SaveProfiles(showSuccess: false))
+        {
+            _restoringWorkspaceSelection = true;
+            WorkspaceList.SelectedItem = _selectedWorkspace;
+            _restoringWorkspaceSelection = false;
+            return;
+        }
         if (_selectedWorkspace is not null)
         {
             _selectedWorkspace.Items.CollectionChanged -= SelectedWorkspaceItems_CollectionChanged;
-            SaveProfiles(showSuccess: false);
+            _selectedWorkspace.PropertyChanged -= SelectedWorkspace_PropertyChanged;
         }
 
         _selectedWorkspace = WorkspaceList.SelectedItem as WorkspaceProfile;
         if (_selectedWorkspace is not null)
         {
             _selectedWorkspace.Items.CollectionChanged += SelectedWorkspaceItems_CollectionChanged;
+            _selectedWorkspace.PropertyChanged += SelectedWorkspace_PropertyChanged;
         }
 
         EditorPanel.DataContext = _selectedWorkspace;
         EditorPanel.IsEnabled = _selectedWorkspace is not null && !_isBusy;
         DeleteWorkspaceButton.IsEnabled = _selectedWorkspace is not null && !_isBusy;
-        LaunchSequenceButton.IsEnabled = !_isBusy;
+        UpdateSequenceControls();
         NewWorkspaceButton.IsEnabled = !_isBusy;
         WorkspaceList.IsEnabled = !_isBusy;
         NoWorkspacesHint.Visibility = _profiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         StatusText.Text = _selectedWorkspace is null ? "Create a workspace to get started." : $"Editing {_selectedWorkspace.Name}";
         UpdateEmptyState();
+        UpdateItemButtons();
     }
 
     private void DesktopComboBox_DropDownOpened(object sender, EventArgs e)
@@ -206,7 +239,7 @@ public partial class MainWindow : Window
             }
 
             _desktopCount = detectedCount;
-            _store.Save(_configuration);
+            ScheduleSave();
             AppendLog($"Detected {_desktopCount} virtual desktop(s); desktop choices refreshed.");
             StatusText.Text = $"Desktop choices refreshed: {_desktopCount} available.";
         }
@@ -223,6 +256,10 @@ public partial class MainWindow : Window
 
     private void NewWorkspaceButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_dirty && !SaveProfiles(showSuccess: false))
+        {
+            return;
+        }
         int nameIndex = _profiles.Count + 1;
         string name;
         do
@@ -237,13 +274,18 @@ public partial class MainWindow : Window
         };
         _profiles.Add(profile);
         WorkspaceList.SelectedItem = profile;
-        AppendLog($"Created {profile.Name}. Add launch items and save your changes.");
+        AppendLog($"Created {profile.Name}. Add launch items.");
+        ScheduleSave();
         SaveProfiles(showSuccess: false);
     }
 
     private void DeleteWorkspaceButton_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedWorkspace is null)
+        {
+            return;
+        }
+        if (_dirty && !SaveProfiles(showSuccess: false))
         {
             return;
         }
@@ -260,10 +302,15 @@ public partial class MainWindow : Window
 
         string deletedName = _selectedWorkspace.Name;
         int selectedIndex = WorkspaceList.SelectedIndex;
-        _configuration.LaunchSequence.Remove(_selectedWorkspace.Id);
+        foreach (LaunchSequence sequence in _configuration.Sequences)
+        {
+            sequence.WorkspaceIds.Remove(_selectedWorkspace.Id);
+        }
         _profiles.Remove(_selectedWorkspace);
         WorkspaceList.SelectedIndex = Math.Min(selectedIndex, _profiles.Count - 1);
+        ScheduleSave();
         SaveProfiles(showSuccess: true);
+        UpdateSequenceControls();
         AppendLog($"Deleted {deletedName}.");
     }
 
@@ -297,6 +344,28 @@ public partial class MainWindow : Window
             return;
         }
 
+        EditSelectedItem(item);
+    }
+
+    private void EditItemButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (LaunchItemsGrid.SelectedItem is LaunchItem item)
+        {
+            EditSelectedItem(item);
+        }
+    }
+
+    private void LaunchItemsGrid_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && LaunchItemsGrid.SelectedItem is LaunchItem item)
+        {
+            e.Handled = true;
+            EditSelectedItem(item);
+        }
+    }
+
+    private void EditSelectedItem(LaunchItem item)
+    {
         var dialog = new LaunchItemDialog(item) { Owner = this };
         if (dialog.ShowDialog() != true || dialog.Item is null)
         {
@@ -308,6 +377,7 @@ public partial class MainWindow : Window
         item.Target = dialog.Item.Target;
         item.ProcessName = dialog.Item.ProcessName;
         item.WindowTitle = dialog.Item.WindowTitle;
+        ScheduleSave();
         AppendLog($"Updated {GetLaunchItemTypeLabel(item.Kind)}: {item.Name}");
     }
 
@@ -340,11 +410,27 @@ public partial class MainWindow : Window
 
     private void ConfigureSequenceButton_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SequenceWindow(
+        if (_dirty && !SaveProfiles(showSuccess: false))
+        {
+            return;
+        }
+        int desktopCount;
+        try
+        {
+            desktopCount = new DesktopCountService().GetDesktopCount();
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(this, $"Could not check the available virtual desktops.\n\n{exception.Message}",
+                "Desktop detection failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        var dialog = new SequenceManagerWindow(
+            _configuration.Sequences,
             _profiles,
-            _configuration.LaunchSequence,
-            _desktopCount,
-            _configuration.EndDesktopIndex)
+            desktopCount,
+            _configuration.SelectedSequenceId,
+            _configuration.DefaultSequenceId)
         {
             Owner = this
         };
@@ -353,30 +439,64 @@ public partial class MainWindow : Window
             return;
         }
 
-        Guid[] previousSequence = _configuration.LaunchSequence.ToArray();
-        int? previousEndDesktopIndex = _configuration.EndDesktopIndex;
-        _configuration.LaunchSequence.Clear();
-        foreach (Guid id in dialog.SequenceIds)
-        {
-            _configuration.LaunchSequence.Add(id);
-        }
-        _configuration.EndDesktopIndex = dialog.EndDesktopIndex;
-
+        _configuration.Sequences = new ObservableCollection<LaunchSequence>(dialog.Sequences);
+        _configuration.SelectedSequenceId = dialog.SelectedSequenceId;
+        _configuration.DefaultSequenceId = dialog.DefaultSequenceId;
+        _dirty = true;
         if (!SaveProfiles(showSuccess: true))
         {
-            _configuration.LaunchSequence.Clear();
-            foreach (Guid id in previousSequence)
-            {
-                _configuration.LaunchSequence.Add(id);
-            }
-            _configuration.EndDesktopIndex = previousEndDesktopIndex;
+            AppendLog("Sequence changes are not saved. Retry saving before closing.");
         }
         else
         {
-            string endDesktop = _configuration.EndDesktopIndex is int desktopIndex
-                ? $"Desktop {desktopIndex + 1}"
-                : "the last workspace's desktop";
-            AppendLog($"Saved launch sequence with {_configuration.LaunchSequence.Count} workspace(s); ending on {endDesktop}.");
+            AppendLog("Saved launch sequences.");
+        }
+        RefreshSequenceSelector();
+    }
+
+    private void RefreshSequenceSelector()
+    {
+        _updatingSequenceSelector = true;
+        SequenceSelector.ItemsSource = _configuration.Sequences;
+        SequenceSelector.SelectedItem = _configuration.Sequences
+            .FirstOrDefault(sequence => sequence.Id == _configuration.SelectedSequenceId);
+        _updatingSequenceSelector = false;
+        UpdateSequenceControls();
+    }
+
+    private void SequenceSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingSequenceSelector)
+        {
+            return;
+        }
+        Guid? previous = _configuration.SelectedSequenceId;
+        _configuration.SelectedSequenceId = (SequenceSelector.SelectedItem as LaunchSequence)?.Id;
+        if (!SaveProfiles(showSuccess: false))
+        {
+            _configuration.SelectedSequenceId = previous;
+            RefreshSequenceSelector();
+            return;
+        }
+        UpdateSequenceControls();
+    }
+
+    private void UpdateSequenceControls()
+    {
+        if (SequenceSelector is null || LaunchSequenceButton is null)
+        {
+            return;
+        }
+        SequenceSelector.IsEnabled = !_isBusy && _configuration.Sequences.Count > 0;
+        bool hasItems = SequenceSelector.SelectedItem is LaunchSequence sequence && sequence.WorkspaceIds.Count > 0;
+        LaunchSequenceButton.IsEnabled = !_isBusy && hasItems;
+        LaunchSequenceButton.ToolTip = hasItems
+            ? "Launch the selected sequence."
+            : "Select a sequence containing at least one workspace. Use Manage sequences to create or edit one.";
+        if (SequenceStateText is not null)
+        {
+            SequenceStateText.Text = hasItems ? "Changes are stored locally in your Windows app-data folder."
+                : "Choose or create a sequence with workspaces using Manage sequences.";
         }
     }
 
@@ -421,19 +541,39 @@ public partial class MainWindow : Window
 
     private async void LaunchSequenceButton_Click(object sender, RoutedEventArgs e)
     {
-        if (!SaveProfiles(showSuccess: false))
+        if (SequenceSelector.SelectedItem is not LaunchSequence selected || selected.WorkspaceIds.Count == 0 ||
+            !SaveProfiles(showSuccess: false))
         {
             return;
         }
 
+        int desktopCount;
+        try
+        {
+            desktopCount = new DesktopCountService().GetDesktopCount();
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(this, $"Could not check the available virtual desktops.\n\n{exception.Message}",
+                "Desktop detection failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+        if ((selected.EndDesktopIndex is int endIndex && endIndex >= desktopCount) ||
+            selected.WorkspaceIds.Any(id => _profiles.First(profile => profile.Id == id).DesktopIndex >= desktopCount))
+        {
+            MessageBox.Show(this, "A desktop used by this sequence is no longer available. Update its workspace or end-desktop settings before launching.",
+                "Desktop unavailable", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         var profilesById = _profiles.ToDictionary(profile => profile.Id);
-        WorkspaceProfile[] sequence = _configuration.LaunchSequence
+        WorkspaceProfile[] sequence = selected.WorkspaceIds
             .Select(id => profilesById[id])
             .ToArray();
         await RunLaunchOperationAsync(() => _launcher.LaunchSequenceAsync(
             sequence,
             ReportActivity,
-            _configuration.EndDesktopIndex));
+            selected.EndDesktopIndex));
     }
 
     private void MoveSelectedItem(int offset)
@@ -455,27 +595,28 @@ public partial class MainWindow : Window
         LaunchItemsGrid.ScrollIntoView(item);
     }
 
-    private bool SaveProfiles(bool showSuccess)
+    private bool SaveProfiles(bool showSuccess, bool notify = true)
     {
+        _saveTimer.Stop();
         LaunchItemsGrid.CommitEdit(System.Windows.Controls.DataGridEditingUnit.Cell, exitEditingMode: true);
         LaunchItemsGrid.CommitEdit(System.Windows.Controls.DataGridEditingUnit.Row, exitEditingMode: true);
 
         if (_profiles.Any(profile => string.IsNullOrWhiteSpace(profile.Name)))
         {
-            ShowValidationError("Every workspace needs a name.");
+            ShowValidationError("Every workspace needs a name.", notify);
             return false;
         }
 
         if (_profiles.GroupBy(profile => profile.Name.Trim(), StringComparer.OrdinalIgnoreCase)
             .Any(group => group.Count() > 1))
         {
-            ShowValidationError("Workspace names must be unique.");
+            ShowValidationError("Workspace names must be unique.", notify);
             return false;
         }
 
         if (_profiles.Any(profile => profile.DesktopIndex < 0 || profile.DesktopIndex >= _desktopCount))
         {
-            ShowValidationError($"Choose a virtual desktop from 1 to {_desktopCount}.");
+            ShowValidationError($"Choose a virtual desktop from 1 to {_desktopCount}.", notify);
             return false;
         }
 
@@ -485,7 +626,7 @@ public partial class MainWindow : Window
             {
                 if (string.IsNullOrWhiteSpace(item.Name) || string.IsNullOrWhiteSpace(item.Target))
                 {
-                    ShowValidationError($"Every launch item in “{profile.Name}” needs a name and target.");
+                    ShowValidationError($"Every launch item in “{profile.Name}” needs a name and target.", notify);
                     return false;
                 }
 
@@ -493,7 +634,7 @@ public partial class MainWindow : Window
                     (!Uri.TryCreate(item.Target, UriKind.Absolute, out var uri) ||
                      (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
                 {
-                    ShowValidationError($"“{item.Name}” must use a valid http:// or https:// address.");
+                    ShowValidationError($"“{item.Name}” must use a valid http:// or https:// address.", notify);
                     return false;
                 }
             }
@@ -502,6 +643,9 @@ public partial class MainWindow : Window
         try
         {
             _store.Save(_configuration);
+            _dirty = false;
+            SaveStatusText.Text = "Changes saved.";
+            SaveButton.Visibility = Visibility.Collapsed;
             if (showSuccess)
             {
                 StatusText.Text = "Changes saved.";
@@ -512,20 +656,23 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            MessageBox.Show(
+            if (notify) MessageBox.Show(
                 $"Could not save workspace settings.\n\n{exception.Message}",
                 "Save failed",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             StatusText.Text = "Save failed.";
+            SaveStatusText.Text = $"Save failed: {exception.Message}";
+            SaveButton.Visibility = Visibility.Visible;
             return false;
         }
     }
 
-    private void ShowValidationError(string message)
+    private void ShowValidationError(string message, bool notify)
     {
-        MessageBox.Show(message, "Check workspace settings", MessageBoxButton.OK, MessageBoxImage.Information);
-        StatusText.Text = "Please fix the workspace settings before saving or launching.";
+        if (notify) MessageBox.Show(message, "Check workspace settings", MessageBoxButton.OK, MessageBoxImage.Information);
+        SaveStatusText.Text = $"Not saved: {message}";
+        SaveButton.Visibility = Visibility.Visible;
     }
 
     private async Task RunLaunchOperationAsync(Func<Task> launch)
@@ -546,6 +693,7 @@ public partial class MainWindow : Window
         catch (Exception exception)
         {
             StatusText.Text = "Launch sequence stopped because of an error.";
+            ActivityExpander.IsExpanded = true;
             AppendLog($"ERROR: {exception.Message}");
             MessageBox.Show(
                 $"The launch sequence could not continue.\n\n{exception.Message}",
@@ -578,6 +726,7 @@ public partial class MainWindow : Window
         catch (Exception exception)
         {
             StatusText.Text = "Workspace close stopped because of an error.";
+            ActivityExpander.IsExpanded = true;
             AppendLog($"ERROR: {exception.Message}");
             MessageBox.Show(
                 $"The workspace could not be closed.\n\n{exception.Message}",
@@ -595,12 +744,13 @@ public partial class MainWindow : Window
     {
         _isBusy = isBusy;
         EditorPanel.IsEnabled = !isBusy && _selectedWorkspace is not null;
-        LaunchSequenceButton.IsEnabled = !isBusy;
+        UpdateSequenceControls();
         ConfigureSequenceButton.IsEnabled = !isBusy;
         NewWorkspaceButton.IsEnabled = !isBusy;
         WorkspaceList.IsEnabled = !isBusy;
         DeleteWorkspaceButton.IsEnabled = !isBusy && _selectedWorkspace is not null;
         SaveButton.IsEnabled = !isBusy;
+        UpdateItemButtons();
     }
 
     private void ReportActivity(string message)
@@ -608,10 +758,12 @@ public partial class MainWindow : Window
         if (message.StartsWith("ERROR:", StringComparison.Ordinal))
         {
             _launchHadItemErrors = true;
+            ActivityExpander.IsExpanded = true;
         }
         if (message.StartsWith("WARNING:", StringComparison.Ordinal))
         {
             _closeHadWarnings = true;
+            ActivityExpander.IsExpanded = true;
         }
 
         StatusText.Text = message;
@@ -627,6 +779,53 @@ public partial class MainWindow : Window
     private void SelectedWorkspaceItems_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         UpdateEmptyState();
+        UpdateItemButtons();
+        ScheduleSave();
+    }
+
+    private void SelectedWorkspace_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(WorkspaceProfile.Name) or nameof(WorkspaceProfile.DesktopIndex))
+        {
+            ScheduleSave();
+        }
+    }
+
+    private void ScheduleSave()
+    {
+        if (!_ready) return;
+        _dirty = true;
+        SaveStatusText.Text = "Unsaved changes.";
+        SaveButton.Visibility = Visibility.Collapsed;
+        _saveTimer.Stop();
+        _saveTimer.Start();
+    }
+
+    private void SaveTimer_Tick(object? sender, EventArgs e)
+    {
+        _saveTimer.Stop();
+        if (_dirty) SaveProfiles(showSuccess: false, notify: false);
+    }
+
+    private void MainWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (_ready && _dirty && !SaveProfiles(showSuccess: false))
+        {
+            e.Cancel = true;
+        }
+    }
+
+    private void LaunchItemsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateItemButtons();
+
+    private void UpdateItemButtons()
+    {
+        if (LaunchItemsGrid is null || EditItemButton is null || RemoveItemButton is null ||
+            MoveUpButton is null || MoveDownButton is null) return;
+        int index = LaunchItemsGrid.SelectedIndex;
+        bool selected = !_isBusy && _selectedWorkspace is not null && index >= 0;
+        EditItemButton.IsEnabled = RemoveItemButton.IsEnabled = selected;
+        MoveUpButton.IsEnabled = selected && index > 0;
+        MoveDownButton.IsEnabled = selected && index < _selectedWorkspace!.Items.Count - 1;
     }
 
     private void UpdateEmptyState()

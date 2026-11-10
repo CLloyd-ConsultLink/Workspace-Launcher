@@ -1,7 +1,7 @@
 <Window x:Class="WorkspaceLauncher.CloseWorkspaceWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Close workspace" Width="520" Height="520"
+        Title="Close workspace" Icon="pack://application:,,,/Assets/WorkspaceLauncher.ico" Width="520" Height="520"
         MinWidth="440" MinHeight="360" WindowStartupLocation="CenterOwner"
         Background="{StaticResource CanvasBrush}" FontFamily="Segoe UI">
     <Grid Margin="24">
